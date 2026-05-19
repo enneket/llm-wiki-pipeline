@@ -1,0 +1,7 @@
+dedup:
+  url_exact: true
+  content_hash: true
+  vector:
+    enabled: true
+    threshold: 0.85           # 全量 cleaned_raw 比对
+    model: text-embedding-3-small
