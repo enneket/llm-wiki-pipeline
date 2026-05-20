@@ -1,4 +1,20 @@
 .env
 .env.local
 .env.*.local
+
+# Data directories (all files ignored, only .gitkeep tracked)
 data/
+data/**/
+!data/.gitkeep
+!data/wiki/.gitkeep
+!data/wiki/sources/.gitkeep
+!data/wiki/entities/.gitkeep
+!data/wiki/concepts/.gitkeep
+!data/raw/.gitkeep
+!data/raw/*/.gitkeep
+!data/reject/.gitkeep
+!data/cleaned_raw/.gitkeep
+!data/feeds/.gitkeep
+
+# Temp binary
+llm-wiki
