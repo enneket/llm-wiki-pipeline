@@ -21,7 +21,8 @@ type Scheduler struct {
 
 func NewScheduler(fetcher *Fetcher) *Scheduler {
 	return &Scheduler{
-		cron: cron.New(cron.WithParser(cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow))),
+		cron:    cron.New(cron.WithParser(cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow))),
+		fetcher: fetcher,
 	}
 }
 

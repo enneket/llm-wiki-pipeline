@@ -3,9 +3,9 @@ filter:
 
   keyword:
     match_any: true
-    tags: [AI, LLM, Rust]
+    tags: ${FILTER_TAGS:-AI,LLM,Rust}
 
   llm_judgment:
     model: gpt-4o-mini
-    sample_rate: 0.1          # 10% 随机采样进 LLM 审核
-    min_confidence: 0.7       # keyword 命中但 confidence < 0.7 送审
+    sample_rate: 0.1
+    min_confidence: 0.7

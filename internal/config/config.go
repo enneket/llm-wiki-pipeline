@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sync"
 
 	"gopkg.in/yaml.v3"
@@ -15,7 +16,6 @@ type Config struct {
 	Filter FilterConfig
 	Dedup  DedupConfig
 	LLM    LLMConfig
-	Tags   TagsConfig
 }
 
 type FeedsConfig struct {
@@ -67,14 +67,7 @@ type LLMConfig struct {
 	BaseURL  string `yaml:"base_url"`
 }
 
-type TagsConfig struct {
-	Interests struct {
-		Primary   []string `yaml:"primary"`
-		Secondary []string `yaml:"secondary"`
-	} `yaml:"interests"`
-}
-
-var configFiles = []string{"feeds.yaml", "filter.yaml", "dedup.yaml", "llm.yaml", "tags.yaml"}
+var configFiles = []string{"feeds.yaml", "filter.yaml", "dedup.yaml", "llm.yaml"}
 
 // Loader loads config and supports hot reload via fsnotify
 type Loader struct {
@@ -106,12 +99,27 @@ func (l *Loader) loadUnlocked() (*Config, error) {
 			}
 			return nil, fmt.Errorf("read %s: %w", filename, err)
 		}
+		data = expandEnv(data)
 		if err := yaml.Unmarshal(data, l.targetFor(filename, cfg)); err != nil {
 			return nil, fmt.Errorf("parse %s: %w", filename, err)
 		}
 	}
 	l.cfg = cfg
 	return cfg, nil
+}
+
+// expandEnv expands ${VAR} and ${VAR:-default} patterns in YAML content
+func expandEnv(data []byte) []byte {
+	re := regexp.MustCompile(`\$\{([A-Z_][A-Z0-9_]*)(?::-([^}]*))?\}`)
+	return re.ReplaceAllFunc(data, func(match []byte) []byte {
+		m := re.FindStringSubmatch(string(match))
+		key, defaultVal := m[1], m[2]
+		val := os.Getenv(key)
+		if val == "" {
+			val = defaultVal
+		}
+		return []byte(val)
+	})
 }
 
 func (l *Loader) targetFor(filename string, cfg *Config) interface{} {
@@ -124,8 +132,6 @@ func (l *Loader) targetFor(filename string, cfg *Config) interface{} {
 		return &cfg.Dedup
 	case "llm.yaml":
 		return &cfg.LLM
-	case "tags.yaml":
-		return &cfg.Tags
 	}
 	return nil
 }
