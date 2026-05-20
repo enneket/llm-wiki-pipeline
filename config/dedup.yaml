@@ -4,6 +4,6 @@ dedup:
   vector:
     enabled: true
     threshold: 0.85
-    model: text-embedding-3-small
-    embedding_url: "${EMBEDDING_BASE_URL:-}"    # 可选，默认用 llm.base_url
-    embedding_api_key: "${EMBEDDING_API_KEY:-}" # 可选，默认用 llm.api_key
+    model: ${EMBEDDING_MODEL:-text-embedding-3-small}
+    embedding_url: "${EMBEDDING_BASE_URL:-${LLM_BASE_URL:-}}"
+    embedding_api_key: "${EMBEDDING_API_KEY:-${LLM_API_KEY:-}}"
