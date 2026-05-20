@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sync"
 
+	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 )
 
@@ -78,6 +79,16 @@ type Loader struct {
 
 // NewLoader creates a config loader
 func NewLoader(configDir string) *Loader {
+	// Auto-load .env from project root (cwd where CLI is run)
+	if err := godotenv.Load(); err != nil {
+		fmt.Fprintf(os.Stderr, "godotenv.Load (cwd): %v\n", err)
+	}
+	// Also try from config dir parent
+	if absDir, err := filepath.Abs(configDir); err == nil {
+		if err := godotenv.Load(filepath.Join(absDir, "..", ".env")); err != nil {
+			// silently ignore - file may not exist
+		}
+	}
 	return &Loader{configDir: configDir}
 }
 
@@ -100,7 +111,18 @@ func (l *Loader) loadUnlocked() (*Config, error) {
 			return nil, fmt.Errorf("read %s: %w", filename, err)
 		}
 		data = expandEnv(data)
-		if err := yaml.Unmarshal(data, l.targetFor(filename, cfg)); err != nil {
+		// llm.yaml and dedup.yaml have a top-level key matching the section name
+		// (e.g., "llm:" wraps llm config). We must unmarshal into the full *Config
+		// so yaml can map the top-level key correctly via the struct tag.
+		// Feeds and filter files have multiple top-level keys matching struct field tags.
+		var target interface{}
+		switch filename {
+		case "llm.yaml", "dedup.yaml":
+			target = cfg
+		default:
+			target = l.targetFor(filename, cfg)
+		}
+		if err := yaml.Unmarshal(data, target); err != nil {
 			return nil, fmt.Errorf("parse %s: %w", filename, err)
 		}
 	}
