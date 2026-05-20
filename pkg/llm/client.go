@@ -15,18 +15,32 @@ import (
 
 // Client is an OpenAI-compatible LLM client
 type Client struct {
-	apiKey   string
-	baseURL  string
-	model    string
+	apiKey     string
+	baseURL    string
+	model      string
+	embedURL   string // separate URL for embeddings (optional)
+	embedKey   string // separate key for embeddings (optional)
 	httpClient *http.Client
 }
 
 // NewClient creates an LLM client
 func NewClient(apiKey, baseURL, model string) *Client {
 	return &Client{
-		apiKey:   apiKey,
-		baseURL:  baseURL,
-		model:    model,
+		apiKey:     apiKey,
+		baseURL:    baseURL,
+		model:      model,
+		httpClient: &http.Client{Timeout: 60 * time.Second},
+	}
+}
+
+// NewClientWithEmbed creates an LLM client with separate embedding endpoint
+func NewClientWithEmbed(apiKey, baseURL, model, embedURL, embedKey string) *Client {
+	return &Client{
+		apiKey:     apiKey,
+		baseURL:    baseURL,
+		model:      model,
+		embedURL:   embedURL,
+		embedKey:   embedKey,
 		httpClient: &http.Client{Timeout: 60 * time.Second},
 	}
 }
@@ -125,11 +139,20 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float32, error)
 		return nil, fmt.Errorf("marshal: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/v1/embeddings", bytes.NewReader(data))
+	embedURL := c.embedURL
+	embedKey := c.embedKey
+	if embedURL == "" {
+		embedURL = c.baseURL
+	}
+	if embedKey == "" {
+		embedKey = c.apiKey
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, embedURL+"/v1/embeddings", bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Authorization", "Bearer "+embedKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)

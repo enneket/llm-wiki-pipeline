@@ -3,7 +3,8 @@ package commands
 import (
 	"context"
 	"fmt"
-		"os/signal"
+	"os/signal"
+	"strings"
 	"syscall"
 
 	"llm-wiki/internal/config"
@@ -72,18 +73,31 @@ func init() {
 				return err
 			}
 			for _, f := range cfg.Feeds.Feeds {
-				fmt.Printf("%s\t%s\ttags=%v\tinterval=%s\n", f.Name, f.URL, f.Tags, f.Interval)
+				fmt.Printf("%s\t%s\ttags=%v\n", f.Name, f.URL, f.Tags)
 			}
 			return nil
 		},
 	})
 	feedCmd.AddCommand(&cobra.Command{
-		Use:   "add <url>",
+		Use:   "add <name> <url> [tags...]",
 		Short: "Add a new RSS feed",
+		Args:  cobra.RangeArgs(2, 3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name := args[0]
+			url := args[1]
+			tags := []string{}
+			if len(args) > 2 {
+				tags = strings.Split(args[2], ",")
+			}
+			return addFeed(name, url, tags)
+		},
+	})
+	feedCmd.AddCommand(&cobra.Command{
+		Use:   "import <file>",
+		Short: "Batch import feeds from OPML or plain URL list",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("feed add:", args[0])
-			return nil
+			return importFeeds(args[0])
 		},
 	})
 	feedCmd.AddCommand(&cobra.Command{

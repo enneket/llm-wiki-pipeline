@@ -3,5 +3,7 @@ dedup:
   content_hash: true
   vector:
     enabled: true
-    threshold: 0.85           # 全量 cleaned_raw 比对
+    threshold: 0.85
     model: text-embedding-3-small
+    embedding_url: "${EMBEDDING_BASE_URL:-}"    # 可选，默认用 llm.base_url
+    embedding_api_key: "${EMBEDDING_API_KEY:-}" # 可选，默认用 llm.api_key

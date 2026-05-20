@@ -12,22 +12,31 @@ import (
 
 // Scheduler manages periodic feed fetching
 type Scheduler struct {
-	cron      *cron.Cron
-	fetcher   *Fetcher
-	feeds     []Feed
-	onNewItem func(feedName string, item *Item, filePath string)
+	cron           *cron.Cron
+	fetcher        *Fetcher
+	feeds          []Feed
+	globalInterval string
+	onNewItem      func(feedName string, item *Item, filePath string)
 }
 
 func NewScheduler(fetcher *Fetcher) *Scheduler {
 	return &Scheduler{
-		cron:    cron.New(cron.WithParser(cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow))),
-		fetcher: fetcher,
+		cron: cron.New(cron.WithParser(cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow))),
 	}
+}
+
+// SetGlobalInterval sets the default interval for all feeds
+func (s *Scheduler) SetGlobalInterval(interval string) {
+	s.globalInterval = interval
 }
 
 // Register adds a feed to the scheduler
 func (s *Scheduler) Register(feed Feed) error {
-	_, err := s.cron.AddFunc(feed.Interval, func() {
+	interval := feed.Interval
+	if interval == "" {
+		interval = s.globalInterval
+	}
+	_, err := s.cron.AddFunc(interval, func() {
 		s.fetchOne(feed)
 	})
 	if err != nil {

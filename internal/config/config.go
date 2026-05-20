@@ -19,14 +19,14 @@ type Config struct {
 }
 
 type FeedsConfig struct {
-	Feeds []FeedEntry `yaml:"feeds"`
+	Feeds    []FeedEntry `yaml:"feeds"`
+	Interval string     `yaml:"interval"` // global interval for all feeds
 }
 
 type FeedEntry struct {
-	Name     string   `yaml:"name"`
-	URL      string   `yaml:"url"`
-	Tags     []string `yaml:"tags"`
-	Interval string   `yaml:"interval"`
+	Name string   `yaml:"name"`
+	URL  string   `yaml:"url"`
+	Tags []string `yaml:"tags"`
 }
 
 type FilterConfig struct {
@@ -53,9 +53,11 @@ type DedupConfig struct {
 }
 
 type VectorConfig struct {
-	Enabled   bool    `yaml:"enabled"`
-	Threshold float64 `yaml:"threshold"`
-	Model     string  `yaml:"model"`
+	Enabled       bool    `yaml:"enabled"`
+	Threshold     float64 `yaml:"threshold"`
+	Model         string  `yaml:"model"`
+	EmbeddingURL  string  `yaml:"embedding_url"`  // 可选，默认用 llm.base_url
+	EmbeddingKey  string  `yaml:"embedding_api_key"` // 可选，默认用 llm.api_key
 }
 
 type LLMConfig struct {

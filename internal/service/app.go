@@ -37,7 +37,14 @@ func New(cfg *config.Config, db *database.DB) *App {
 	fetcher := step1.NewFetcher()
 	scheduler := step1.NewScheduler(fetcher)
 
-	llmClient := llm.NewClient(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model)
+	var llmClient *llm.Client
+	embedURL := cfg.Dedup.Vector.EmbeddingURL
+	embedKey := cfg.Dedup.Vector.EmbeddingKey
+	if embedURL != "" && embedKey != "" {
+		llmClient = llm.NewClientWithEmbed(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model, embedURL, embedKey)
+	} else {
+		llmClient = llm.NewClient(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model)
+	}
 
 	app := &App{
 		cfg:        cfg,
@@ -77,13 +84,14 @@ func New(cfg *config.Config, db *database.DB) *App {
 		app.processOne(ctx, feedName, filePath)
 	})
 
+	scheduler.SetGlobalInterval(cfg.Feeds.Interval)
+
 	// Register feeds from config
 	for _, f := range cfg.Feeds.Feeds {
 		scheduler.Register(step1.Feed{
-			Name:     f.Name,
-			URL:      f.URL,
-			Tags:     f.Tags,
-			Interval: f.Interval,
+			Name: f.Name,
+			URL:  f.URL,
+			Tags: f.Tags,
 		})
 	}
 
