@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -194,7 +195,56 @@ func init() {
 		Use:   "status",
 		Short: "Show ingest queue status",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("wiki status — not yet implemented")
+			app, err := loadApp()
+			if err != nil {
+				return err
+			}
+			defer app.DB().Close()
+
+			ctx := context.Background()
+
+			// Count documents in each stage
+			var totalDocs int
+			app.DB().Pool.QueryRow(ctx, `SELECT COUNT(*) FROM documents`).Scan(&totalDocs)
+
+			var cleanedCount int
+			if entries, _ := filepath.Glob("data/cleaned_raw/*.md"); entries != nil {
+				cleanedCount = len(entries)
+			}
+
+			var wikiCount int
+			if entries, _ := filepath.Glob("data/wiki/**/*.md"); entries != nil {
+				wikiCount = len(entries)
+			}
+
+			fmt.Println("=== Pipeline Status ===")
+			fmt.Printf("Documents processed: %d\n", totalDocs)
+			fmt.Printf("Cleaned raw files: %d\n", cleanedCount)
+			fmt.Printf("Wiki pages: %d\n", wikiCount)
+
+			// Feed stats
+			fmt.Println("\n=== Feeds ===")
+			rows, _ := app.DB().Pool.Query(ctx, `
+				SELECT url, source, content_hash IS NOT NULL as has_hash, file_path IS NOT NULL as has_file
+				FROM documents LIMIT 20
+			`)
+			type docRow struct{ URL, Source string; HasHash, HasFile bool }
+			var docs []docRow
+			for rows.Next() {
+				var r docRow
+				rows.Scan(&r.URL, &r.Source, &r.HasHash, &r.HasFile)
+				docs = append(docs, r)
+			}
+			if len(docs) > 0 {
+				for _, d := range docs {
+					fmt.Printf("  %s [%s]\n", d.URL, d.Source)
+				}
+			}
+
+			fmt.Println("\n=== Scheduler ===")
+			for _, f := range app.Scheduler().Feeds() {
+				fmt.Printf("  %s: %s\n", f.Name, f.URL)
+			}
 			return nil
 		},
 	})
