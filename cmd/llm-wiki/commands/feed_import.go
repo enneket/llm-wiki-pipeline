@@ -87,17 +87,12 @@ func importFeeds(filePath string) error {
 	return nil
 }
 
-// parseOPML parses OPML XML to extract RSS feed outlines
+// parseOPML parses OPML XML to extract RSS feed outlines (recursive for nested groups)
 func parseOPML(data []byte) ([]config.FeedEntry, error) {
 	var opml struct {
 		XMLName xml.Name `xml:"opml"`
 		Body    struct {
-			Outlines []struct {
-				XMLName xml.Name `xml:"outline"`
-				Text    string  `xml:"text,attr"`
-				Title   string  `xml:"title,attr"`
-				XMLURL  string  `xml:"xmlUrl,attr"`
-			} `xml:"body>outline"`
+			Outlines []rawOutline `xml:"outline"`
 		} `xml:"body"`
 	}
 
@@ -106,27 +101,40 @@ func parseOPML(data []byte) ([]config.FeedEntry, error) {
 	}
 
 	var feeds []config.FeedEntry
-	for _, o := range opml.Body.Outlines {
-		if o.XMLURL == "" {
-			continue
-		}
-		name := o.Title
-		if name == "" {
-			name = o.Text
-		}
-		if name == "" {
-			u, _ := url.Parse(o.XMLURL)
-			if u != nil {
-				name = u.Host
-			}
-		}
-		feeds = append(feeds, config.FeedEntry{
-			Name: sanitizeName(name),
-			URL:  o.XMLURL,
-			Tags: []string{},
-		})
-	}
+	collectOutlines(opml.Body.Outlines, &feeds)
 	return feeds, nil
+}
+
+type rawOutline struct {
+	XMLName xml.Name
+	Text    string      `xml:"text,attr"`
+	Title   string      `xml:"title,attr"`
+	XMLURL  string      `xml:"xmlUrl,attr"`
+	Outlines []rawOutline `xml:"outline"`
+}
+
+func collectOutlines(outlines []rawOutline, feeds *[]config.FeedEntry) {
+	for _, o := range outlines {
+		if o.XMLURL != "" {
+			name := o.Title
+			if name == "" {
+				name = o.Text
+			}
+			if name == "" {
+				if u, _ := url.Parse(o.XMLURL); u != nil {
+					name = u.Host
+				}
+			}
+			*feeds = append(*feeds, config.FeedEntry{
+				Name: sanitizeName(name),
+				URL:  o.XMLURL,
+				Tags: []string{},
+			})
+		}
+		if len(o.Outlines) > 0 {
+			collectOutlines(o.Outlines, feeds)
+		}
+	}
 }
 
 // parseURLList parses a plain text file with one URL per line
