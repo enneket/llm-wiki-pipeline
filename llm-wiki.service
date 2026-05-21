@@ -1,0 +1,15 @@
+[Unit]
+Description=LLM Wiki Pipeline
+After=network.target postgresql.service
+
+[Service]
+ExecStart=/home/zjx/code/mine/llm-wiki-pipeline/llm-wiki start
+WorkingDirectory=/home/zjx/code/mine/llm-wiki-pipeline
+EnvironmentFile=/home/zjx/code/mine/llm-wiki-pipeline/.env
+Restart=on-failure
+RestartSec=10s
+StandardOutput=append:/home/zjx/code/mine/llm-wiki-pipeline/logs/llm-wiki.log
+StandardError=append:/home/zjx/code/mine/llm-wiki-pipeline/logs/llm-wiki.error.log
+
+[Install]
+WantedBy=multi-user.target
