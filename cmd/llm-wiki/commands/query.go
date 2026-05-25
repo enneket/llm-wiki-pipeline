@@ -3,10 +3,12 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"llm-wiki/internal/config"
+	"llm-wiki/pkg/database"
 	"llm-wiki/pkg/llm"
 )
 
@@ -25,17 +27,36 @@ func runQuery(question string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
+	dbURL := os.Getenv("DATABASE_URL")
+	db, err := database.New(context.Background(), database.Config{DatabaseURL: dbURL})
+	if err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+	defer db.Close()
+
 	llmClient := llm.NewClient(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model)
 
 	ctx := context.Background()
-	embeddings, err := llmClient.EmbedSingle(ctx, question)
-	if err != nil {
-		return fmt.Errorf("embed question: %w", err)
-	}
 
-	results, err := llm.SearchEmbeddings(ctx, nil, embeddings, 5)
-	if err != nil {
-		return fmt.Errorf("search wiki: %w", err)
+	var results []llm.SearchResult
+
+	embedURL := os.Getenv("EMBEDDING_BASE_URL")
+	if embedURL != "" {
+		// Vector search when embedding is configured
+		embeddings, err := llmClient.EmbedSingle(ctx, question)
+		if err != nil {
+			return fmt.Errorf("embed question: %w", err)
+		}
+		results, err = llm.SearchEmbeddings(ctx, db.Pool, embeddings, 5)
+		if err != nil {
+			return fmt.Errorf("search wiki: %w", err)
+		}
+	} else {
+		// Fallback to full-text search when embedding is not configured
+		results, err = llm.SearchFullText(ctx, db.Pool, question, 5)
+		if err != nil {
+			return fmt.Errorf("search wiki (fulltext): %w", err)
+		}
 	}
 
 	var contextBuilder strings.Builder

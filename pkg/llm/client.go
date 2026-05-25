@@ -250,6 +250,10 @@ type EmbedData struct {
 
 // Embed generates embeddings for the given texts
 func (c *Client) Embed(ctx context.Context, texts []string) ([][]float32, error) {
+	if c.embedURL == "" {
+		return nil, fmt.Errorf("embedding not configured: EMBEDDING_BASE_URL is not set")
+	}
+
 	reqBody := EmbedRequest{
 		Model: c.model,
 		Input: texts,
@@ -262,7 +266,7 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float32, error)
 	embedURL := c.embedURL
 	embedKey := c.embedKey
 	if embedURL == "" {
-		embedURL = c.baseURL
+		return nil, fmt.Errorf("embedding endpoint not configured: EMBEDDING_BASE_URL is empty")
 	}
 	if embedKey == "" {
 		embedKey = c.apiKey
@@ -334,6 +338,32 @@ type SearchResult struct {
 	Slug       string
 	Content    string
 	Similarity float32
+}
+
+// SearchFullText searches wiki pages by text match (fallback when embedding not configured)
+func SearchFullText(ctx context.Context, pool *pgxpool.Pool, query string, limit int) ([]SearchResult, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT w.id, w.title, w.slug, w.content
+		FROM wiki_pages w
+		WHERE w.page_type IN ('entity', 'concept')
+		  AND (w.title ILIKE $1 OR w.content ILIKE $1)
+		LIMIT $2
+	`, "%"+query+"%", limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []SearchResult
+	for rows.Next() {
+		var r SearchResult
+		if err := rows.Scan(&r.PageID, &r.Title, &r.Slug, &r.Content); err != nil {
+			return nil, err
+		}
+		r.Similarity = 0.5 // neutral score for text match
+		results = append(results, r)
+	}
+	return results, nil
 }
 
 // UpsertWikiEmbedding stores a wiki page embedding
