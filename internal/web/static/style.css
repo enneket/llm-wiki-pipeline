@@ -1,0 +1,384 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+header h1 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+
+nav {
+    display: flex;
+    gap: 10px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+.tab {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #666;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.tab:hover {
+    background: #f0f0f0;
+}
+
+.tab.active {
+    background: #3498db;
+    color: #fff;
+}
+
+.tab-content {
+    display: none;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Query */
+.query-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    resize: vertical;
+}
+
+button {
+    padding: 10px 20px;
+    background: #3498db;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #2980b9;
+}
+
+.answer-box {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.answer-box h3 {
+    margin-bottom: 10px;
+    color: #2c3e50;
+}
+
+.sources {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.sources h4 {
+    margin-bottom: 10px;
+    color: #666;
+}
+
+.source-item {
+    padding: 8px;
+    background: #fff;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    border-left: 3px solid #3498db;
+}
+
+/* Stats */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: bold;
+    color: #3498db;
+}
+
+.stat-label {
+    color: #666;
+    margin-top: 5px;
+}
+
+/* Feeds */
+.feed-form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.feed-form input {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.feed-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.feed-info h3 {
+    margin-bottom: 5px;
+}
+
+.feed-info p {
+    color: #666;
+    font-size: 14px;
+}
+
+.delete-btn {
+    background: #e74c3c;
+    padding: 8px 16px;
+}
+
+.delete-btn:hover {
+    background: #c0392b;
+}
+
+.feed-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.import-section,
+.export-section {
+    display: flex;
+    gap: 8px;
+}
+
+.import-section button,
+.export-section button {
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+.import-section button {
+    background: #27ae60;
+}
+
+.import-section button:hover {
+    background: #229954;
+}
+
+.export-section button {
+    background: #8e44ad;
+}
+
+.export-section button:hover {
+    background: #7d3c98;
+}
+
+/* Wiki */
+.wiki-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.wiki-item {
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.wiki-item:hover {
+    background: #ecf0f1;
+}
+
+.wiki-item h3 {
+    margin-bottom: 5px;
+}
+
+.wiki-item .tags {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.tag {
+    padding: 2px 8px;
+    background: #3498db;
+    color: #fff;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.wiki-content {
+    line-height: 1.8;
+}
+
+.wiki-content button {
+    margin-bottom: 20px;
+}
+
+.wiki-content h2 {
+    margin-bottom: 20px;
+    color: #2c3e50;
+}
+
+.wiki-content pre {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.wiki-content code {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.wiki-content blockquote {
+    border-left: 4px solid #3498db;
+    padding-left: 15px;
+    margin: 15px 0;
+    color: #666;
+}
+
+/* Settings */
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.settings-card {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.settings-card h3 {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    color: #2c3e50;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+    font-size: 14px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"],
+.form-group input[type="number"],
+.form-group select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-group input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.api-key-field {
+    display: flex;
+    gap: 8px;
+}
+
+.api-key-field input {
+    flex: 1;
+}
+
+.api-key-field .toggle-visibility {
+    padding: 8px 12px;
+    font-size: 12px;
+    background: #95a5a6;
+}
+
+.api-key-field .toggle-visibility:hover {
+    background: #7f8c8d;
+}
+
+.settings-card button {
+    width: 100%;
+    margin-top: 10px;
+}
