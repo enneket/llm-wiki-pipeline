@@ -11,6 +11,7 @@ document.querySelectorAll('.tab').forEach(tab => {
         if (tab.dataset.tab === 'feeds') loadFeeds();
         if (tab.dataset.tab === 'wiki') loadWiki();
         if (tab.dataset.tab === 'settings') loadSettings();
+        if (tab.dataset.tab === 'documents') loadDocuments();
     });
 });
 
@@ -337,5 +338,145 @@ document.getElementById('question').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         askQuestion();
+    }
+});
+
+// Documents
+let docState = { page: 1, perPage: 20, total: 0 };
+
+async function loadDocuments() {
+    // Load stats for filter dropdowns
+    try {
+        const statsRes = await fetch('/api/documents/stats');
+        const stats = await statsRes.json();
+
+        const feedSelect = document.getElementById('doc-filter-feed');
+        const currentFeed = feedSelect.value;
+        feedSelect.innerHTML = '<option value="">全部 Feed</option>' +
+            stats.feeds.filter(f => f.count > 0).map(f =>
+                `<option value="${f.id}">${escapeHtml(f.name)} (${f.count})</option>`
+            ).join('');
+        feedSelect.value = currentFeed;
+    } catch (err) {
+        console.error('Failed to load doc stats:', err);
+    }
+
+    // Load documents
+    await fetchDocuments();
+}
+
+async function fetchDocuments() {
+    const params = new URLSearchParams();
+    params.set('page', docState.page);
+    params.set('per_page', docState.perPage);
+
+    const feed = document.getElementById('doc-filter-feed').value;
+    const status = document.getElementById('doc-filter-status').value;
+    const source = document.getElementById('doc-filter-source').value;
+    const tag = document.getElementById('doc-filter-tag').value.trim();
+    const sortVal = document.getElementById('doc-sort').value;
+    const [sort, order] = sortVal.split(':');
+
+    if (feed) params.set('feed_id', feed);
+    if (status) params.set('status', status);
+    if (source) params.set('source', source);
+    if (tag) params.set('tag', tag);
+    params.set('sort', sort);
+    params.set('order', order);
+
+    try {
+        const res = await fetch(`/api/documents?${params}`);
+        const data = await res.json();
+
+        docState.total = data.total;
+        const totalPages = Math.max(1, Math.ceil(data.total / docState.perPage));
+
+        document.getElementById('doc-total').textContent = `共 ${data.total} 篇文档`;
+        document.getElementById('doc-page-info').textContent = `第 ${data.page}/${totalPages} 页`;
+
+        const list = document.getElementById('doc-list');
+        const items = data.items || [];
+        list.innerHTML = items.map(d => {
+            const statusMap = { pending: '⏳ 待处理', processing: '🔄 处理中', done: '✅ 已完成', failed: '❌ 失败' };
+            return `
+                <div class="doc-item">
+                    <h3><a href="#" onclick="loadDocPage(${d.id}); return false;">${escapeHtml(d.title)}</a></h3>
+                    <div class="doc-item-meta">
+                        <span>来源: ${escapeHtml(d.feed_name)}</span>
+                        ${d.tags.length ? `<span>标签: ${d.tags.map(escapeHtml).join(', ')}</span>` : ''}
+                        <span>${statusMap[d.status] || d.status}</span>
+                        <span>${d.created_at.split('T')[0]}</span>
+                    </div>
+                    <p class="doc-summary">${escapeHtml(d.summary)}</p>
+                </div>
+            `;
+        }).join('');
+
+        // Pagination
+        const pagDiv = document.getElementById('doc-pagination');
+        let pagHtml = '';
+        if (data.page > 1) {
+            pagHtml += `<button onclick="goDocPage(${data.page - 1})">上一页</button>`;
+        }
+        for (let i = 1; i <= totalPages && i <= 10; i++) {
+            pagHtml += `<button onclick="goDocPage(${i})" ${i === data.page ? 'class="active"' : ''}>${i}</button>`;
+        }
+        if (data.page < totalPages) {
+            pagHtml += `<button onclick="goDocPage(${data.page + 1})">下一页</button>`;
+        }
+        pagDiv.innerHTML = pagHtml;
+
+        document.getElementById('doc-list').style.display = 'block';
+        document.getElementById('doc-pagination').style.display = totalPages > 1 ? 'flex' : 'none';
+        document.getElementById('doc-content').style.display = 'none';
+    } catch (err) {
+        console.error('Failed to load documents:', err);
+    }
+}
+
+function goDocPage(page) {
+    docState.page = page;
+    fetchDocuments();
+}
+
+async function loadDocPage(id) {
+    try {
+        const res = await fetch(`/api/documents/${id}`);
+        if (!res.ok) throw new Error('Not found');
+        const doc = await res.json();
+
+        document.getElementById('doc-title').textContent = doc.title;
+        document.getElementById('doc-meta-feed').textContent = '来源: ' + doc.feed_name;
+        const statusMap = { pending: '⏳ 待处理', processing: '🔄 处理中', done: '✅ 已完成', failed: '❌ 失败' };
+        document.getElementById('doc-meta-status').textContent = statusMap[doc.status] || doc.status;
+        document.getElementById('doc-meta-source').textContent = '类型: ' + doc.source;
+        document.getElementById('doc-meta-date').textContent = doc.created_at.split('T')[0];
+        document.getElementById('doc-body').innerHTML = renderMarkdown(doc.content);
+
+        document.getElementById('doc-list').style.display = 'none';
+        document.getElementById('doc-pagination').style.display = 'none';
+        document.getElementById('doc-content').style.display = 'block';
+    } catch (err) {
+        alert('加载失败: ' + err.message);
+    }
+}
+
+function backToDocList() {
+    document.getElementById('doc-list').style.display = 'block';
+    document.getElementById('doc-pagination').style.display = 'flex';
+    document.getElementById('doc-content').style.display = 'none';
+}
+
+// Document filter listeners
+['doc-filter-feed', 'doc-filter-status', 'doc-filter-source', 'doc-sort'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
+        docState.page = 1;
+        fetchDocuments();
+    });
+});
+document.getElementById('doc-filter-tag').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        docState.page = 1;
+        fetchDocuments();
     }
 });
