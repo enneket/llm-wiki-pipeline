@@ -15,6 +15,7 @@
                 <button class="tab" data-tab="status">状态</button>
                 <button class="tab" data-tab="feeds">Feed 管理</button>
                 <button class="tab" data-tab="wiki">Wiki 浏览</button>
+                <button class="tab" data-tab="documents">文档</button>
                 <button class="tab" data-tab="settings">设置</button>
             </nav>
         </header>
@@ -92,6 +93,50 @@
                     <button onclick="backToList()">返回列表</button>
                     <h2 id="wiki-title"></h2>
                     <div id="wiki-body"></div>
+                </div>
+            </section>
+
+            <!-- Documents Tab -->
+            <section id="documents" class="tab-content">
+                <div class="doc-filters">
+                    <select id="doc-filter-feed"><option value="">全部 Feed</option></select>
+                    <select id="doc-filter-status">
+                        <option value="">全部状态</option>
+                        <option value="pending">⏳ 待处理</option>
+                        <option value="processing">🔄 处理中</option>
+                        <option value="done">✅ 已完成</option>
+                        <option value="failed">❌ 失败</option>
+                    </select>
+                    <select id="doc-filter-source">
+                        <option value="">全部来源</option>
+                        <option value="raw">raw</option>
+                        <option value="cleaned_raw">cleaned_raw</option>
+                        <option value="reject">reject</option>
+                    </select>
+                    <input id="doc-filter-tag" placeholder="标签筛选">
+                    <select id="doc-sort">
+                        <option value="created_at:desc">最新优先</option>
+                        <option value="created_at:asc">最早优先</option>
+                        <option value="title:asc">标题 A-Z</option>
+                        <option value="title:desc">标题 Z-A</option>
+                    </select>
+                </div>
+                <div class="doc-header">
+                    <span id="doc-total">共 0 篇文档</span>
+                    <span id="doc-page-info">第 0/0 页</span>
+                </div>
+                <div id="doc-list" class="doc-list"></div>
+                <div id="doc-pagination" class="doc-pagination"></div>
+                <div id="doc-content" class="doc-content" style="display:none">
+                    <button onclick="backToDocList()">返回列表</button>
+                    <h2 id="doc-title"></h2>
+                    <div class="doc-meta">
+                        <span id="doc-meta-feed"></span>
+                        <span id="doc-meta-status"></span>
+                        <span id="doc-meta-source"></span>
+                        <span id="doc-meta-date"></span>
+                    </div>
+                    <div id="doc-body"></div>
                 </div>
             </section>
 
