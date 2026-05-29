@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
+
+	"llm-wiki/pkg/database"
 )
 
 // Config holds all application config
@@ -75,6 +78,7 @@ type Loader struct {
 	configDir string
 	mu        sync.RWMutex
 	cfg       *Config
+	db        *database.DB
 }
 
 // NewLoader creates a config loader
@@ -92,14 +96,33 @@ func NewLoader(configDir string) *Loader {
 	return &Loader{configDir: configDir}
 }
 
-// Load reads all config files
+// NewLoaderWithDB creates a config loader with database support
+func NewLoaderWithDB(configDir string, db *database.DB) *Loader {
+	return &Loader{
+		configDir: configDir,
+		db:        db,
+	}
+}
+
+// Load reads config from database or YAML files
 func (l *Loader) Load() (*Config, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return l.loadUnlocked()
+
+	if l.db != nil {
+		ctx := context.Background()
+		cfg, err := LoadFromDB(ctx, l.db)
+		if err != nil {
+			return nil, err
+		}
+		l.cfg = cfg
+		return cfg, nil
+	}
+
+	return l.loadFromYAML()
 }
 
-func (l *Loader) loadUnlocked() (*Config, error) {
+func (l *Loader) loadFromYAML() (*Config, error) {
 	cfg := &Config{}
 	for _, filename := range configFiles {
 		path := filepath.Join(l.configDir, filename)
@@ -169,7 +192,18 @@ func (l *Loader) Get() *Config {
 func (l *Loader) Reload() (*Config, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return l.loadUnlocked()
+
+	if l.db != nil {
+		ctx := context.Background()
+		cfg, err := LoadFromDB(ctx, l.db)
+		if err != nil {
+			return nil, err
+		}
+		l.cfg = cfg
+		return cfg, nil
+	}
+
+	return l.loadFromYAML()
 }
 
 // ReloadIfChanged checks mtimes and reloads only changed files
@@ -189,6 +223,47 @@ func (l *Loader) ReloadIfChanged() (*Config, bool, error) {
 	if !changed {
 		return l.cfg, false, nil
 	}
-	newCfg, err := l.loadUnlocked()
+	newCfg, err := l.loadFromYAML()
 	return newCfg, true, err
+}
+
+// LoadFromDB loads config from database
+func LoadFromDB(ctx context.Context, db *database.DB) (*Config, error) {
+	store := NewStore(db.Pool)
+	cfg, err := store.LoadAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+// SaveToDB saves config to database
+func SaveToDB(ctx context.Context, db *database.DB, cfg *Config) error {
+	store := NewStore(db.Pool)
+
+	if err := store.SaveCategory(ctx, "llm", cfg.LLM); err != nil {
+		return err
+	}
+	if err := store.SaveCategory(ctx, "filter", cfg.Filter); err != nil {
+		return err
+	}
+	if err := store.SaveCategory(ctx, "dedup", cfg.Dedup); err != nil {
+		return err
+	}
+	if err := store.SaveCategory(ctx, "general", map[string]string{"interval": cfg.Feeds.Interval}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// LoadFromDBWithDefaults loads from DB, returns empty config if no settings exist
+func LoadFromDBWithDefaults(ctx context.Context, db *database.DB) (*Config, error) {
+	cfg, err := LoadFromDB(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	if cfg == nil {
+		cfg = &Config{}
+	}
+	return cfg, nil
 }
