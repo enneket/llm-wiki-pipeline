@@ -82,7 +82,11 @@ func (s *Server) handleUpdateSettingCategory(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *Server) reloadConfig(ctx context.Context) error {
-	// Placeholder - will be implemented in Task 5
+	cfg, err := config.LoadFromDB(ctx, s.db)
+	if err != nil {
+		return fmt.Errorf("reload config from db: %w", err)
+	}
+	s.cfg = cfg
 	return nil
 }
 
