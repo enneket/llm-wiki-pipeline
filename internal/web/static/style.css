@@ -366,6 +366,7 @@ button:hover {
 
 .api-key-field input {
     flex: 1;
+    min-width: 200px;
 }
 
 .api-key-field .toggle-visibility {
