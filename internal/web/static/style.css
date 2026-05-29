@@ -383,3 +383,113 @@ button:hover {
     width: 100%;
     margin-top: 10px;
 }
+
+/* Documents */
+.doc-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.doc-filters select,
+.doc-filters input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.doc-filters input {
+    min-width: 120px;
+}
+
+.doc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    color: #666;
+    font-size: 14px;
+}
+
+.doc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.doc-item {
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.doc-item h3 {
+    margin-bottom: 5px;
+}
+
+.doc-item h3 a {
+    color: #2c3e50;
+    text-decoration: none;
+}
+
+.doc-item h3 a:hover {
+    color: #3498db;
+}
+
+.doc-item-meta {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.doc-summary {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.5;
+}
+
+.doc-pagination {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.doc-pagination button {
+    padding: 6px 12px;
+    font-size: 14px;
+}
+
+.doc-pagination button.active {
+    background: #2c3e50;
+}
+
+.doc-content {
+    line-height: 1.8;
+}
+
+.doc-content button {
+    margin-bottom: 20px;
+}
+
+.doc-content h2 {
+    margin-bottom: 10px;
+    color: #2c3e50;
+}
+
+.doc-meta {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
