@@ -19,7 +19,7 @@ COPY --from=builder /llm-wiki /usr/local/bin/llm-wiki
 
 # Copy config files
 COPY config/ /app/config/
-COPY migrations/ /app/migrations/
+COPY pkg/database/migrations/ /app/migrations/
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /docker-entrypoint.sh
