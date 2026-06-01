@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -24,7 +25,7 @@ var rootCmd = &cobra.Command{
 
 var (
 	configDir string
-	dbURL    string
+	dbURL     string
 )
 
 func Execute(ctx context.Context) error {
@@ -238,8 +239,16 @@ func init() {
 			}
 
 			var wikiCount int
-			if entries, _ := filepath.Glob("data/wiki/**/*.md"); entries != nil {
-				wikiCount = len(entries)
+			if err := filepath.Walk("data/wiki", func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if !info.IsDir() && strings.HasSuffix(path, ".md") {
+					wikiCount++
+				}
+				return nil
+			}); err != nil {
+				return err
 			}
 
 			fmt.Println("=== Pipeline Status ===")
@@ -253,7 +262,10 @@ func init() {
 				SELECT url, source, content_hash IS NOT NULL as has_hash, file_path IS NOT NULL as has_file
 				FROM documents LIMIT 20
 			`)
-			type docRow struct{ URL, Source string; HasHash, HasFile bool }
+			type docRow struct {
+				URL, Source      string
+				HasHash, HasFile bool
+			}
 			var docs []docRow
 			for rows.Next() {
 				var r docRow

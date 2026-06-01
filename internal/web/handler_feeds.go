@@ -1,17 +1,16 @@
 package web
 
 import (
-	"bufio"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
+
+	"llm-wiki/pkg/feedutil"
 )
 
 type Feed struct {
@@ -199,12 +198,11 @@ func (s *Server) handleImportFeeds(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var parsed []ImportFeed
-	content := string(data)
-	if strings.Contains(content, "<opml") || strings.Contains(content, "<?xml") {
-		parsed, err = parseOPMLImport(data)
+	var parsed []feedutil.FeedEntry
+	if feedutil.DetectFormat(data) == "opml" {
+		parsed, err = feedutil.ParseOPML(data)
 	} else {
-		parsed, err = parseURLListImport(data)
+		parsed, err = feedutil.ParseURLList(data)
 	}
 	if err != nil {
 		http.Error(w, fmt.Sprintf("parse error: %v", err), http.StatusBadRequest)
@@ -253,92 +251,4 @@ func (s *Server) handleImportFeeds(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"added": added, "total": len(parsed)})
-}
-
-type ImportFeed struct {
-	Name string
-	URL  string
-	Tags []string
-}
-
-type rawOutline struct {
-	XMLName  xml.Name
-	Text     string       `xml:"text,attr"`
-	Title    string       `xml:"title,attr"`
-	XMLURL   string       `xml:"xmlUrl,attr"`
-	Outlines []rawOutline `xml:"outline"`
-}
-
-func parseOPMLImport(data []byte) ([]ImportFeed, error) {
-	var opml struct {
-		XMLName xml.Name `xml:"opml"`
-		Body    struct {
-			Outlines []rawOutline `xml:"outline"`
-		} `xml:"body"`
-	}
-	if err := xml.Unmarshal(data, &opml); err != nil {
-		return nil, fmt.Errorf("opml parse: %w", err)
-	}
-	var feeds []ImportFeed
-	collectOutlinesImport(opml.Body.Outlines, &feeds)
-	return feeds, nil
-}
-
-func collectOutlinesImport(outlines []rawOutline, feeds *[]ImportFeed) {
-	for _, o := range outlines {
-		if o.XMLURL != "" {
-			name := o.Title
-			if name == "" {
-				name = o.Text
-			}
-			if name == "" {
-				if u, _ := url.Parse(o.XMLURL); u != nil {
-					name = u.Host
-				}
-			}
-			*feeds = append(*feeds, ImportFeed{
-				Name: sanitizeNameImport(name),
-				URL:  o.XMLURL,
-				Tags: []string{},
-			})
-		}
-		if len(o.Outlines) > 0 {
-			collectOutlinesImport(o.Outlines, feeds)
-		}
-	}
-}
-
-func parseURLListImport(data []byte) ([]ImportFeed, error) {
-	var feeds []ImportFeed
-	urlRE := regexp.MustCompile(`https?://[^\s]+`)
-	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		matches := urlRE.FindAllString(line, -1)
-		for _, match := range matches {
-			u, err := url.Parse(match)
-			if err != nil {
-				continue
-			}
-			feeds = append(feeds, ImportFeed{
-				Name: sanitizeNameImport(u.Host),
-				URL:  match,
-				Tags: []string{},
-			})
-		}
-	}
-	return feeds, nil
-}
-
-func sanitizeNameImport(name string) string {
-	result := strings.ToLower(name)
-	result = regexp.MustCompile(`[^a-z0-9_]+`).ReplaceAllString(result, "_")
-	result = strings.Trim(result, "_")
-	if result == "" {
-		result = "feed"
-	}
-	return result
 }

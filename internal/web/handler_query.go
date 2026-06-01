@@ -15,7 +15,7 @@ type QueryRequest struct {
 }
 
 type QueryResponse struct {
-	Answer  string         `json:"answer"`
+	Answer  string             `json:"answer"`
 	Sources []llm.SearchResult `json:"sources"`
 }
 

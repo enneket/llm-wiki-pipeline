@@ -195,7 +195,10 @@ func (s *Server) handleDocumentStats(w http.ResponseWriter, r *http.Request) {
 	resp.BySource = make(map[string]int)
 
 	// Total
-	s.db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM documents").Scan(&resp.Total)
+	if err := s.db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM documents").Scan(&resp.Total); err != nil {
+		http.Error(w, "failed to count documents", http.StatusInternalServerError)
+		return
+	}
 
 	// By status
 	rows, err := s.db.Pool.Query(ctx, `
@@ -212,7 +215,10 @@ func (s *Server) handleDocumentStats(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var status string
 		var count int
-		rows.Scan(&status, &count)
+		if err := rows.Scan(&status, &count); err != nil {
+			http.Error(w, "failed to scan stats", http.StatusInternalServerError)
+			return
+		}
 		resp.ByStatus[status] = count
 	}
 
@@ -228,7 +234,10 @@ func (s *Server) handleDocumentStats(w http.ResponseWriter, r *http.Request) {
 	for rows2.Next() {
 		var source string
 		var count int
-		rows2.Scan(&source, &count)
+		if err := rows2.Scan(&source, &count); err != nil {
+			http.Error(w, "failed to scan source stats", http.StatusInternalServerError)
+			return
+		}
 		resp.BySource[source] = count
 	}
 
@@ -247,7 +256,10 @@ func (s *Server) handleDocumentStats(w http.ResponseWriter, r *http.Request) {
 	defer rows3.Close()
 	for rows3.Next() {
 		var fs FeedStat
-		rows3.Scan(&fs.ID, &fs.Name, &fs.Count)
+		if err := rows3.Scan(&fs.ID, &fs.Name, &fs.Count); err != nil {
+			http.Error(w, "failed to scan feed stats", http.StatusInternalServerError)
+			return
+		}
 		resp.Feeds = append(resp.Feeds, fs)
 	}
 

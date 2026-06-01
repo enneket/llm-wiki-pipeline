@@ -1,7 +1,7 @@
 package step3
 
 import (
-		"fmt"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -15,20 +15,20 @@ type WikiWriter struct {
 }
 
 type wikiJob struct {
-	page     *WikiPage
-	jobType  string // "write" | "update_index" | "update_log"
+	page    *WikiPage
+	jobType string // "write" | "update_index" | "update_log"
 }
 
 // WikiPage represents a generated wiki page
 type WikiPage struct {
-	Title      string
-	Slug       string
-	Type       string // entity | concept | source
-	Tags       []string
-	Content    string
-	Sources    []string // cleaned_raw paths
-	FilePath   string
-	WikiLinks  []string
+	Title     string
+	Slug      string
+	Type      string // entity | concept | source
+	Tags      []string
+	Content   string
+	Sources   []string // cleaned_raw paths
+	FilePath  string
+	WikiLinks []string
 }
 
 // NewWikiWriter creates a serialised wiki file writer
@@ -123,7 +123,9 @@ func (w *WikiWriter) updateIndex() {
 	}
 
 	idxPath := filepath.Join("data", "wiki", "index.md")
-	os.WriteFile(idxPath, []byte(index), 0644)
+	if err := os.WriteFile(idxPath, []byte(index), 0644); err != nil {
+		fmt.Printf("[writer] failed to update index: %v\n", err)
+	}
 }
 
 func (w *WikiWriter) updateLog(page *WikiPage) {
@@ -133,10 +135,13 @@ func (w *WikiWriter) updateLog(page *WikiPage) {
 	// Append to log
 	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
+		fmt.Printf("[writer] failed to open log: %v\n", err)
 		return
 	}
-	f.WriteString(logLine)
-	f.Close()
+	defer f.Close()
+	if _, err := f.WriteString(logLine); err != nil {
+		fmt.Printf("[writer] failed to write log: %v\n", err)
+	}
 }
 
 func buildMarkdown(page *WikiPage) string {

@@ -4,14 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pgvector/pgvector-go"
 )
 
 // DedupResult is the result of a dedup check
 type DedupResult struct {
-	Decision   string // url_duplicate | hash_duplicate | vector_duplicate | kept
+	Decision    string // url_duplicate | hash_duplicate | vector_duplicate | kept
 	DuplicateOf int64
 }
 
@@ -30,12 +30,9 @@ func NewDedup(pool *pgxpool.Pool, threshold float64, enabled bool) *Dedup {
 // Check runs all dedup strategies in cascade
 func (d *Dedup) Check(ctx context.Context, url, contentHash string, embedding []float32) (*DedupResult, error) {
 	// 1. URL exact match
-	if _, err := d.pool.Exec(ctx, `SELECT 1 FROM documents WHERE url = $1 LIMIT 1`, url); err == nil {
-		// Found — get the ID
-		var existingID int64
-		if err := d.pool.QueryRow(ctx, `SELECT id FROM documents WHERE url = $1`, url).Scan(&existingID); err == nil {
-			return &DedupResult{Decision: "url_duplicate", DuplicateOf: existingID}, nil
-		}
+	var existingID int64
+	if err := d.pool.QueryRow(ctx, `SELECT id FROM documents WHERE url = $1`, url).Scan(&existingID); err == nil {
+		return &DedupResult{Decision: "url_duplicate", DuplicateOf: existingID}, nil
 	}
 
 	// 2. Content hash match

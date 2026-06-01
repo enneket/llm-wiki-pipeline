@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,24 +21,24 @@ import (
 
 // App ties together all pipeline components
 type App struct {
-	cfg        *config.Config
-	loader     *config.Loader
-	db         *database.DB
-	llmClient  *llm.Client
-	fetcher    *step1.Fetcher
-	scheduler  *step1.Scheduler
-	filter     *step2.Filter
-	dedup      *step2.Dedup
-	embedder   *vectpkg.Embedder
-	writer     *step3.WikiWriter
-	ingest     *step3.Ingest
-	webServer  *web.Server
+	cfg       *config.Config
+	loader    *config.Loader
+	db        *database.DB
+	llmClient *llm.Client
+	fetcher   *step1.Fetcher
+	scheduler *step1.Scheduler
+	filter    *step2.Filter
+	dedup     *step2.Dedup
+	embedder  *vectpkg.Embedder
+	writer    *step3.WikiWriter
+	ingest    *step3.Ingest
+	webServer *web.Server
 }
 
 // New creates and wires all components
 func New(cfg *config.Config, db *database.DB) *App {
 	fetcher := step1.NewFetcher()
-	scheduler := step1.NewScheduler(fetcher)
+	scheduler := step1.NewScheduler(fetcher, cfg.Paths.Raw)
 
 	var llmClient *llm.Client
 	embedURL := cfg.Dedup.Vector.EmbeddingURL
@@ -49,11 +50,11 @@ func New(cfg *config.Config, db *database.DB) *App {
 	}
 
 	app := &App{
-		cfg:        cfg,
-		db:         db,
-		llmClient:  llmClient,
-		fetcher:    fetcher,
-		scheduler:  scheduler,
+		cfg:       cfg,
+		db:        db,
+		llmClient: llmClient,
+		fetcher:   fetcher,
+		scheduler: scheduler,
 		filter: step2.NewFilter(
 			cfg.Filter.Mode,
 			step2.KeywordFilter{
@@ -78,7 +79,7 @@ func New(cfg *config.Config, db *database.DB) *App {
 	app.filter.SetLLMClient(llmClient)
 
 	app.ingest = step3.NewIngest(llmClient, app.embedder, app.writer, app.dedup)
-	app.webServer = web.NewServer(db, llmClient)
+	app.webServer = web.NewServer(db, llmClient, cfg)
 
 	// Wire scheduler callbacks: fetch → filter → ingest (direct call)
 	scheduler.OnNewItem(func(feedName string, item *step1.Item, filePath string) {
@@ -172,13 +173,20 @@ func (a *App) processOne(ctx context.Context, feedName, filePath string) {
 
 func (a *App) moveTo(src, targetDir string) (string, error) {
 	filename := fmt.Sprintf("%s_%d.md", "src", time.Now().UnixNano())
-	dest := fmt.Sprintf("data/%s/%s", targetDir, filename)
-	f, err := os.Open(src)
-	if err != nil {
-		return "", err
+
+	// Get base path from config
+	var basePath string
+	switch targetDir {
+	case "cleaned_raw":
+		basePath = a.cfg.Paths.CleanedRaw
+	case "reject":
+		basePath = a.cfg.Paths.Reject
+	default:
+		basePath = filepath.Join("data", targetDir)
 	}
-	defer f.Close()
-	if err := os.MkdirAll("data/"+targetDir, 0755); err != nil {
+
+	dest := filepath.Join(basePath, filename)
+	if err := os.MkdirAll(basePath, 0755); err != nil {
 		return "", err
 	}
 	data, err := os.ReadFile(src)
@@ -188,7 +196,9 @@ func (a *App) moveTo(src, targetDir string) (string, error) {
 	if err := os.WriteFile(dest, data, 0644); err != nil {
 		return "", err
 	}
-	os.Remove(src)
+	if err := os.Remove(src); err != nil {
+		fmt.Printf("[app] warning: failed to remove source file %s: %v\n", src, err)
+	}
 	return dest, nil
 }
 

@@ -10,9 +10,9 @@ import (
 
 // Filter decides whether a document passes the filter
 type Filter struct {
-	mode     string
-	keyword  KeywordFilter
-	llmCfg   LLMJudgmentConfig
+	mode      string
+	keyword   KeywordFilter
+	llmCfg    LLMJudgmentConfig
 	llmClient *llm.Client
 }
 

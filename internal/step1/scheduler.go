@@ -16,13 +16,15 @@ type Scheduler struct {
 	fetcher        *Fetcher
 	feeds          []Feed
 	globalInterval string
+	rawDataPath    string
 	onNewItem      func(feedName string, item *Item, filePath string)
 }
 
-func NewScheduler(fetcher *Fetcher) *Scheduler {
+func NewScheduler(fetcher *Fetcher, rawDataPath string) *Scheduler {
 	return &Scheduler{
-		cron:    cron.New(cron.WithParser(cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow))),
-		fetcher: fetcher,
+		cron:        cron.New(cron.WithParser(cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow))),
+		fetcher:     fetcher,
+		rawDataPath: rawDataPath,
 	}
 }
 
@@ -89,7 +91,7 @@ func (s *Scheduler) fetchOne(feed Feed) {
 		}
 
 		for _, item := range items {
-			filePath, err := SaveToFile(&item, feed.Name)
+			filePath, err := SaveToFile(&item, feed.Name, s.rawDataPath)
 			if err != nil {
 				log.Printf("[scheduler] save %s/%s failed: %v", feed.Name, item.Title, err)
 				continue

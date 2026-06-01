@@ -12,8 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	)
+)
 
 // Feed represents a parsed RSS/Atom feed entry
 type Feed struct {
@@ -133,14 +132,14 @@ func (f *Fetcher) parseAtom(body []byte) ([]Item, error) {
 	return items, nil
 }
 
-// SaveToFile persists a feed item to ./data/raw/YYYY-MM-DD/source_name.md
-func SaveToFile(item *Item, feedName string) (string, error) {
+// SaveToFile persists a feed item to basePath/YYYY-MM-DD/source_name.md
+func SaveToFile(item *Item, feedName, basePath string) (string, error) {
 	date := item.Published.Format("2006-01-02")
 	if item.Published.IsZero() {
 		date = time.Now().Format("2006-01-02")
 	}
 
-	dir := filepath.Join("data", "raw", date)
+	dir := filepath.Join(basePath, date)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("mkdir: %w", err)
 	}
@@ -200,7 +199,7 @@ func parseTime(s string) time.Time {
 // --- XML structs ---
 
 type RSSFeed struct {
-	XMLName xml.Name    `xml:"rss"`
+	XMLName xml.Name   `xml:"rss"`
 	Channel RSSChannel `xml:"channel"`
 }
 
@@ -209,9 +208,9 @@ type RSSChannel struct {
 }
 
 type RSSItem struct {
-	Title       string    `xml:"title"`
-	Link        string    `xml:"link"`
-	Description string    `xml:"description"`
+	Title       string   `xml:"title"`
+	Link        string   `xml:"link"`
+	Description string   `xml:"description"`
 	Content     struct { // optional <content:encoded>
 		Encoded string `xml:"encoded"`
 	} `xml:"content"`
@@ -219,16 +218,16 @@ type RSSItem struct {
 }
 
 type AtomFeed struct {
-	XMLName xml.Name  `xml:"feed"`
+	XMLName xml.Name    `xml:"feed"`
 	Entries []AtomEntry `xml:"entry"`
 }
 
 type AtomEntry struct {
-	Title    string   `xml:"title"`
-	Links    []AtomLink `xml:"link"`
-	Summary  string   `xml:"summary"`
-	Content  string   `xml:"content"`
-	Published string  `xml:"published"`
+	Title     string     `xml:"title"`
+	Links     []AtomLink `xml:"link"`
+	Summary   string     `xml:"summary"`
+	Content   string     `xml:"content"`
+	Published string     `xml:"published"`
 }
 
 type AtomLink struct {

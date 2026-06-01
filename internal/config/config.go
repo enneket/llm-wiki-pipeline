@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sync"
+	"time"
 
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
@@ -20,11 +21,13 @@ type Config struct {
 	Filter FilterConfig
 	Dedup  DedupConfig
 	LLM    LLMConfig
+	Web    WebConfig
+	Paths  PathsConfig
 }
 
 type FeedsConfig struct {
 	Feeds    []FeedEntry `yaml:"feeds"`
-	Interval string     `yaml:"interval"` // global interval for all feeds
+	Interval string      `yaml:"interval"` // global interval for all feeds
 }
 
 type FeedEntry struct {
@@ -34,8 +37,8 @@ type FeedEntry struct {
 }
 
 type FilterConfig struct {
-	Mode        string           `yaml:"mode"`
-	Keyword     KeywordFilter    `yaml:"keyword"`
+	Mode        string            `yaml:"mode"`
+	Keyword     KeywordFilter     `yaml:"keyword"`
 	LLMJudgment LLMJudgmentConfig `yaml:"llm_judgment"`
 }
 
@@ -51,17 +54,17 @@ type LLMJudgmentConfig struct {
 }
 
 type DedupConfig struct {
-	URLExtact   bool         `yaml:"url_exact"`
+	URLExact    bool         `yaml:"url_exact"`
 	ContentHash bool         `yaml:"content_hash"`
 	Vector      VectorConfig `yaml:"vector"`
 }
 
 type VectorConfig struct {
-	Enabled       bool    `yaml:"enabled"`
-	Threshold     float64 `yaml:"threshold"`
-	Model         string  `yaml:"model"`
-	EmbeddingURL  string  `yaml:"embedding_url"`  // 可选，默认用 llm.base_url
-	EmbeddingKey  string  `yaml:"embedding_api_key"` // 可选，默认用 llm.api_key
+	Enabled      bool    `yaml:"enabled"`
+	Threshold    float64 `yaml:"threshold"`
+	Model        string  `yaml:"model"`
+	EmbeddingURL string  `yaml:"embedding_url"`     // 可选，默认用 llm.base_url
+	EmbeddingKey string  `yaml:"embedding_api_key"` // 可选，默认用 llm.api_key
 }
 
 type LLMConfig struct {
@@ -69,6 +72,20 @@ type LLMConfig struct {
 	Model    string `yaml:"model"`
 	APIKey   string `yaml:"api_key"`
 	BaseURL  string `yaml:"base_url"`
+}
+
+// WebConfig holds web server configuration
+type WebConfig struct {
+	Port     string `yaml:"port"`
+	APIToken string `yaml:"api_token"` // Optional: Bearer token for API authentication
+}
+
+// PathsConfig holds data directory paths
+type PathsConfig struct {
+	Raw        string `yaml:"raw"`         // Path to raw RSS data (default: data/raw)
+	CleanedRaw string `yaml:"cleaned_raw"` // Path to cleaned raw data (default: data/cleaned_raw)
+	Wiki       string `yaml:"wiki"`        // Path to wiki data (default: data/wiki)
+	Reject     string `yaml:"reject"`      // Path to rejected data (default: data/reject)
 }
 
 var configFiles = []string{"feeds.yaml", "filter.yaml", "dedup.yaml", "llm.yaml"}
@@ -79,6 +96,7 @@ type Loader struct {
 	mu        sync.RWMutex
 	cfg       *Config
 	db        *database.DB
+	mtimes    map[string]time.Time
 }
 
 // NewLoader creates a config loader
@@ -93,7 +111,7 @@ func NewLoader(configDir string) *Loader {
 			// silently ignore - file may not exist
 		}
 	}
-	return &Loader{configDir: configDir}
+	return &Loader{configDir: configDir, mtimes: make(map[string]time.Time)}
 }
 
 // NewLoaderWithDB creates a config loader with database support
@@ -101,6 +119,7 @@ func NewLoaderWithDB(configDir string, db *database.DB) *Loader {
 	return &Loader{
 		configDir: configDir,
 		db:        db,
+		mtimes:    make(map[string]time.Time),
 	}
 }
 
@@ -217,8 +236,11 @@ func (l *Loader) ReloadIfChanged() (*Config, bool, error) {
 		if err != nil {
 			continue
 		}
-		_ = info
-		changed = true
+		mtime := info.ModTime()
+		if prev, ok := l.mtimes[name]; !ok || prev.Before(mtime) {
+			l.mtimes[name] = mtime
+			changed = true
+		}
 	}
 	if !changed {
 		return l.cfg, false, nil
@@ -265,5 +287,26 @@ func LoadFromDBWithDefaults(ctx context.Context, db *database.DB) (*Config, erro
 	if cfg == nil {
 		cfg = &Config{}
 	}
+	// Apply defaults
+	cfg.applyDefaults()
 	return cfg, nil
+}
+
+// applyDefaults sets default values for empty fields
+func (c *Config) applyDefaults() {
+	if c.Paths.Raw == "" {
+		c.Paths.Raw = "data/raw"
+	}
+	if c.Paths.CleanedRaw == "" {
+		c.Paths.CleanedRaw = "data/cleaned_raw"
+	}
+	if c.Paths.Wiki == "" {
+		c.Paths.Wiki = "data/wiki"
+	}
+	if c.Paths.Reject == "" {
+		c.Paths.Reject = "data/reject"
+	}
+	if c.Web.Port == "" {
+		c.Web.Port = "6006"
+	}
 }

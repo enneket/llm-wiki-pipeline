@@ -82,7 +82,7 @@ func cleanBaseURL(baseURL, provider string) string {
 
 type chatCompletionRequest struct {
 	Model    string        `json:"model"`
-	Messages []chatMessage  `json:"messages"`
+	Messages []chatMessage `json:"messages"`
 }
 
 type chatMessage struct {
@@ -91,8 +91,8 @@ type chatMessage struct {
 }
 
 type chatCompletionResponse struct {
-	ID      string    `json:"id"`
-	Choices []choice  `json:"choices"`
+	ID      string   `json:"id"`
+	Choices []choice `json:"choices"`
 	Usage   usage    `json:"usage"`
 }
 
@@ -113,7 +113,7 @@ type volcInputItem struct {
 }
 
 type volcRequest struct {
-	Model string           `json:"model"`
+	Model string          `json:"model"`
 	Input []volcInputItem `json:"input"`
 }
 
@@ -123,13 +123,13 @@ type volcContentBlock struct {
 }
 
 type volcMessage struct {
-	Role    string              `json:"role"`
+	Role    string             `json:"role"`
 	Content []volcContentBlock `json:"content"`
 }
 
 type volcOutput struct {
-	Type    string              `json:"type"`
-	Role    string              `json:"role,omitempty"`
+	Type    string             `json:"type"`
+	Role    string             `json:"role,omitempty"`
 	Content []volcContentBlock `json:"content,omitempty"`
 	Message volcMessage        `json:"message,omitempty"`
 }
@@ -317,7 +317,7 @@ func (c *Client) EmbedSingle(ctx context.Context, text string) ([]float32, error
 
 // SearchEmbeddings searches pgvector for top-K similar wiki embeddings
 func SearchEmbeddings(ctx context.Context, pool *pgxpool.Pool, queryEmbedding []float32, limit int) ([]SearchResult, error) {
-	row := pool.QueryRow(ctx, `
+	rows, err := pool.Query(ctx, `
 		SELECT w.id, w.title, w.slug, w.content,
 		       1 - (e.embedding <=> $1) AS similarity
 		FROM wiki_embeddings e
@@ -326,14 +326,20 @@ func SearchEmbeddings(ctx context.Context, pool *pgxpool.Pool, queryEmbedding []
 		ORDER BY e.embedding <=> $1
 		LIMIT $2
 	`, pgvector.NewVector(queryEmbedding), limit)
-
-	var id int64
-	var title, slug, content string
-	var similarity float32
-	if err := row.Scan(&id, &title, &slug, &content, &similarity); err != nil {
+	if err != nil {
 		return nil, err
 	}
-	return []SearchResult{{PageID: id, Title: title, Slug: slug, Content: content, Similarity: similarity}}, nil
+	defer rows.Close()
+
+	var results []SearchResult
+	for rows.Next() {
+		var r SearchResult
+		if err := rows.Scan(&r.PageID, &r.Title, &r.Slug, &r.Content, &r.Similarity); err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+	return results, nil
 }
 
 // SearchResult from vector search

@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"llm-wiki/internal/config"
@@ -18,18 +19,55 @@ import (
 var staticFiles embed.FS
 
 type Server struct {
-	db   *database.DB
-	llm  *llm.Client
-	port string
-	cfg  *config.Config
+	db       *database.DB
+	llm      *llm.Client
+	port     string
+	cfg      *config.Config
+	apiToken string
 }
 
-func NewServer(db *database.DB, llmClient *llm.Client) *Server {
-	return &Server{
-		db:   db,
-		llm:  llmClient,
-		port: "6006",
+func NewServer(db *database.DB, llmClient *llm.Client, cfg *config.Config) *Server {
+	port := cfg.Web.Port
+	if port == "" {
+		port = "6006"
 	}
+	return &Server{
+		db:       db,
+		llm:      llmClient,
+		port:     port,
+		cfg:      cfg,
+		apiToken: cfg.Web.APIToken,
+	}
+}
+
+// authMiddleware validates Bearer token if apiToken is configured
+func (s *Server) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip auth for static files and if no token configured
+		if s.apiToken == "" || !strings.HasPrefix(r.URL.Path, "/api/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			http.Error(w, `{"error":"missing authorization header"}`, http.StatusUnauthorized)
+			return
+		}
+
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			http.Error(w, `{"error":"invalid authorization format"}`, http.StatusUnauthorized)
+			return
+		}
+
+		if parts[1] != s.apiToken {
+			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) Start(ctx context.Context) error {
@@ -59,9 +97,12 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 	mux.Handle("GET /", http.FileServer(http.FS(staticFS)))
 
+	// Apply auth middleware
+	handler := s.authMiddleware(mux)
+
 	server := &http.Server{
 		Addr:         ":" + s.port,
-		Handler:      mux,
+		Handler:      handler,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}

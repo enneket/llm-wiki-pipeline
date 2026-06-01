@@ -1,15 +1,11 @@
 package commands
 
 import (
-	"bufio"
-	"encoding/xml"
 	"fmt"
-	"net/url"
 	"os"
-	"regexp"
-	"strings"
 
 	"llm-wiki/internal/config"
+	"llm-wiki/pkg/feedutil"
 
 	"gopkg.in/yaml.v3"
 )
@@ -48,13 +44,30 @@ func importFeeds(filePath string) error {
 	var feeds []config.FeedEntry
 
 	// Detect format: OPML vs plain URL list
-	if strings.Contains(string(data), "<opml") || strings.Contains(string(data), "<?xml") {
-		feeds, err = parseOPML(data)
+	if feedutil.DetectFormat(data) == "opml" {
+		parsed, err := feedutil.ParseOPML(data)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", filePath, err)
+		}
+		for _, f := range parsed {
+			feeds = append(feeds, config.FeedEntry{
+				Name: f.Name,
+				URL:  f.URL,
+				Tags: f.Tags,
+			})
+		}
 	} else {
-		feeds, err = parseURLList(data)
-	}
-	if err != nil {
-		return fmt.Errorf("parse %s: %w", filePath, err)
+		parsed, err := feedutil.ParseURLList(data)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", filePath, err)
+		}
+		for _, f := range parsed {
+			feeds = append(feeds, config.FeedEntry{
+				Name: f.Name,
+				URL:  f.URL,
+				Tags: f.Tags,
+			})
+		}
 	}
 
 	// Load existing config
@@ -87,103 +100,15 @@ func importFeeds(filePath string) error {
 	return nil
 }
 
-// parseOPML parses OPML XML to extract RSS feed outlines (recursive for nested groups)
-func parseOPML(data []byte) ([]config.FeedEntry, error) {
-	var opml struct {
-		XMLName xml.Name `xml:"opml"`
-		Body    struct {
-			Outlines []rawOutline `xml:"outline"`
-		} `xml:"body"`
-	}
-
-	if err := xml.Unmarshal(data, &opml); err != nil {
-		return nil, fmt.Errorf("opml parse: %w", err)
-	}
-
-	var feeds []config.FeedEntry
-	collectOutlines(opml.Body.Outlines, &feeds)
-	return feeds, nil
-}
-
-type rawOutline struct {
-	XMLName xml.Name
-	Text    string      `xml:"text,attr"`
-	Title   string      `xml:"title,attr"`
-	XMLURL  string      `xml:"xmlUrl,attr"`
-	Outlines []rawOutline `xml:"outline"`
-}
-
-func collectOutlines(outlines []rawOutline, feeds *[]config.FeedEntry) {
-	for _, o := range outlines {
-		if o.XMLURL != "" {
-			name := o.Title
-			if name == "" {
-				name = o.Text
-			}
-			if name == "" {
-				if u, _ := url.Parse(o.XMLURL); u != nil {
-					name = u.Host
-				}
-			}
-			*feeds = append(*feeds, config.FeedEntry{
-				Name: sanitizeName(name),
-				URL:  o.XMLURL,
-				Tags: []string{},
-			})
-		}
-		if len(o.Outlines) > 0 {
-			collectOutlines(o.Outlines, feeds)
-		}
-	}
-}
-
-// parseURLList parses a plain text file with one URL per line
-func parseURLList(data []byte) ([]config.FeedEntry, error) {
-	var feeds []config.FeedEntry
-	urlRE := regexp.MustCompile(`https?://[^\s]+`)
-	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		matches := urlRE.FindAllString(line, -1)
-		for _, match := range matches {
-			u, err := url.Parse(match)
-			if err != nil {
-				continue
-			}
-			name := u.Host
-			feeds = append(feeds, config.FeedEntry{
-				Name: sanitizeName(name),
-				URL:  match,
-				Tags: []string{},
-			})
-		}
-	}
-	return feeds, nil
-}
-
-// sanitizeName converts a string to a valid feed name (lowercase, alphanumeric, underscores)
-func sanitizeName(name string) string {
-	result := strings.ToLower(name)
-	result = regexp.MustCompile(`[^a-z0-9_]+`).ReplaceAllString(result, "_")
-	result = strings.Trim(result, "_")
-	if result == "" {
-		result = "feed"
-	}
-	return result
-}
-
 // saveFeedsConfig writes the feeds config back to feeds.yaml
 func saveFeedsConfig(cfg *config.Config) error {
 	// Marshal with feeds: wrapper
 	type feedsWrapper struct {
-		Feeds   []config.FeedEntry `yaml:"feeds"`
+		Feeds    []config.FeedEntry `yaml:"feeds"`
 		Interval string             `yaml:"interval"`
 	}
 	w := feedsWrapper{
-		Feeds:   cfg.Feeds.Feeds,
+		Feeds:    cfg.Feeds.Feeds,
 		Interval: cfg.Feeds.Interval,
 	}
 	data, err := yaml.Marshal(w)
