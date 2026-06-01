@@ -11,4 +11,616 @@ feeds:
     - name: example_com
       url: https://example.com/rss
       tags: []
+    - name: ai
+      url: https://ainews.liduos.com/rss.xml
+      tags: []
+    - name: deepmind
+      url: https://rsshub.app/deepmind
+      tags: []
+    - name: founder_park
+      url: https://wechat2rss.bestblogs.dev/feed/f940695505f2be1399d23cc98182297cadf6f90d.xml
+      tags: []
+    - name: huggingface
+      url: https://rsshub.app/huggingface
+      tags: []
+    - name: jina_ai
+      url: https://jina.ai/feed.rss
+      tags: []
+    - name: last_week_in_ai
+      url: https://lastweekin.ai/feed
+      tags: []
+    - name: latent_space
+      url: https://www.latent.space/feed
+      tags: []
+    - name: mit
+      url: https://rsshub.app/mittrchina
+      tags: []
+    - name: openai
+      url: https://rsshub.app/openai
+      tags: []
+    - name: the_batch_deeplearning_ai_ai_news_insights
+      url: https://rsshub.bestblogs.dev/deeplearning/the-batch
+      tags: []
+    - name: turing_post
+      url: https://rss.beehiiv.com/feeds/UJIoBuf5BX.xml
+      tags: []
+    - name: feed
+      url: https://s.baoyu.io/feed.xml
+      tags: []
+    - name: feed
+      url: https://wechat2rss.bestblogs.dev/feed/e531a18b21c34cf787b83ab444eef659d7a980de.xml
+      tags: []
+    - name: feed
+      url: https://wechat2rss.bestblogs.dev/feed/8d97af31b0de9e48da74558af128a4673d78c9a3.xml
+      tags: []
+    - name: feed
+      url: https://www.qbitai.com/feed
+      tags: []
+    - name: feed
+      url: https://rsshub.app/quanzhiwei
+      tags: []
+    - name: ai_hot
+      url: https://aihot.virxact.com/feed/all.xml
+      tags: []
+    - name: github_claude_code_issues
+      url: https://rsshub.app/github/issue/Anthropic/claude-code
+      tags: []
+    - name: github_claude_code_releases
+      url: https://rsshub.app/github/release/Anthropic/claude-code
+      tags: []
+    - name: github_trending
+      url: https://rsshub.app/github/trending
+      tags: []
+    - name: hacker_news
+      url: https://rsshub.app/hackernews
+      tags: []
+    - name: rsshub_updates
+      url: https://rsshub.app/rsshub
+      tags: []
+    - name: aws_architecture_blog
+      url: https://aws.amazon.com/blogs/architecture/feed/
+      tags: []
+    - name: aws_machine_learning_blog
+      url: https://aws.amazon.com/blogs/machine-learning/feed/
+      tags: []
+    - name: blog_on_llamaindex
+      url: https://www.llamaindex.ai/blog/feed
+      tags: []
+    - name: bytebytego_newsletter
+      url: https://blog.bytebytego.com/feed
+      tags: []
+    - name: coding_horror
+      url: https://blog.codinghorror.com/rss/
+      tags: []
+    - name: docker
+      url: https://www.docker.com/feed/
+      tags: []
+    - name: engineering_at_meta
+      url: https://engineering.fb.com/feed/
+      tags: []
+    - name: engineering_at_slack
+      url: https://slack.engineering/feed/
+      tags: []
+    - name: engineering_on_grafana_labs
+      url: https://grafana.com/categories/engineering/index.xml
+      tags: []
+    - name: freecodecamp_programming_tutorials_python_javascript_git_more
+      url: https://www.freecodecamp.org/news/rss/
+      tags: []
+    - name: hugging_face_blog
+      url: https://huggingface.co/blog/feed.xml
+      tags: []
+    - name: intellij_idea_intellij_idea_the_leading_java_and_kotlin_ide_by_jetbrains_the_jetbrains_blog
+      url: https://blog.jetbrains.com/idea/feed
+      tags: []
+    - name: java_code_geeks
+      url: http://feeds.feedburner.com/JavaCodeGeeks
+      tags: []
+    - name: langchain_blog
+      url: https://blog.langchain.com/rss/
+      tags: []
+    - name: martin_fowler
+      url: https://martinfowler.com/feed.atom
+      tags: []
+    - name: microservice_architecture
+      url: https://microservices.io/feed.xml
+      tags: []
+    - name: microsoft_azure_blog
+      url: https://azure.microsoft.com/en-us/blog/feed/
+      tags: []
+    - name: microsoft_research_blog_microsoft_research
+      url: https://www.microsoft.com/en-us/research/blog/feed/?from=https%3A%2F%2Fresearch.microsoft.com%2Frss%2Fnews.xml&type=rss
+      tags: []
+    - name: netflix_techblog_medium
+      url: https://netflixtechblog.com/feed
+      tags: []
+    - name: redis
+      url: https://redis.io/feed/
+      tags: []
+    - name: sagyam_s_blog
+      url: https://blog.sagyamthapa.com.np/rss.xml#/
+      tags: []
+    - name: spring
+      url: https://spring.io/blog.atom
+      tags: []
+    - name: stack_overflow_blog
+      url: http://blog.stackoverflow.com/feed/
+      tags: []
+    - name: the_apache_software_foundation_blog
+      url: https://news.apache.org/feed
+      tags: []
+    - name: the_cloudflare_blog
+      url: https://blog.cloudflare.com/rss
+      tags: []
+    - name: the_github_blog
+      url: https://github.blog/feed/
+      tags: []
+    - name: the_new_stack
+      url: https://thenewstack.io/feed/
+      tags: []
+    - name: uber_engineering_blog
+      url: https://www.uber.com/blog/engineering/rss/
+      tags: []
+    - name: feed
+      url: https://tech.meituan.com/feed/
+      tags: []
+    - name: 1link_fun
+      url: https://techhub.social/users/1link.rss
+      tags: []
+    - name: 54321_weekly
+      url: https://54321.versun.me/feed/
+      tags: []
+    - name: aigc_weekly
+      url: https://quaily.com/op7418/feed/atom
+      tags: []
+    - name: better_dev_link
+      url: https://betterdev.link/rss.xml
+      tags: []
+    - name: hellogithub
+      url: https://hellogithub.com/rss
+      tags: []
+    - name: paul_graham
+      url: https://rsshub.app/paulgraham
+      tags: []
+    - name: feed
+      url: https://iui.su/feed/
+      tags: []
+    - name: feed
+      url: https://wiki.eryajf.net/rss.xml
+      tags: []
+    - name: feed
+      url: https://rrorangeandfriends.de/feed.xml
+      tags: []
+    - name: feed
+      url: https://rsshub.app/sspai
+      tags: []
+    - name: feed
+      url: https://moonvy.com/blog/rss.xml
+      tags: []
+    - name: feed
+      url: https://weekly.tw93.fun/rss.xml
+      tags: []
+    - name: feed
+      url: https://sugarat.top/feed.rss
+      tags: []
+    - name: feed
+      url: https://weekly.howie6879.com/rss/rss.xml
+      tags: []
+    - name: feed
+      url: https://weekly.shawnxie.top/rss.xml
+      tags: []
+    - name: ezindie_com
+      url: https://www.ezindie.com/feed/rss.xml
+      tags: []
+    - name: feed
+      url: https://pythoncat.top/rss.xml
+      tags: []
+    - name: feed
+      url: https://www.ruanyifeng.com/blog/atom.xml
+      tags: []
+    - name: feed
+      url: https://rsshub.app/ruanyf
+      tags: []
+    - name: feed
+      url: https://ameow.xyz/feed.xml
+      tags: []
+    - name: feed
+      url: https://rsshub.app/aliresearch
+      tags: []
+    - name: feed
+      url: https://www.ftium4.com/rss.xml
+      tags: []
+    - name: 36kr
+      url: https://rsshub.app/36kr/hot-list
+      tags: []
+    - name: "36"
+      url: https://36kr.com/feed
+      tags: []
+    - name: infoq
+      url: https://feed.infoq.com/
+      tags: []
+    - name: infoq
+      url: https://rsshub.app/infoq
+      tags: []
+    - name: infoq
+      url: https://plink.anyfeeder.com/infoq/recommend
+      tags: []
+    - name: mit
+      url: https://rsshub.bestblogs.dev/mittrchina/hot
+      tags: []
+    - name: readhub_readhub
+      url: https://rsshub.bestblogs.dev/readhub/daily
+      tags: []
+    - name: techcrunch
+      url: https://techcrunch.com/feed/
+      tags: []
+    - name: techcrunch
+      url: https://rsshub.app/techcrunch
+      tags: []
+    - name: the_verge
+      url: https://rsshub.app/theverge
+      tags: []
+    - name: on_supertechfans
+      url: https://www.supertechfans.com/cn/index.xml
+      tags: []
+    - name: solidot
+      url: https://www.solidot.org/index.rss
+      tags: []
+    - name: feed
+      url: https://sspai.com/feed
+      tags: []
+    - name: feed
+      url: https://rsshub.bestblogs.dev/latepost
+      tags: []
+    - name: feed
+      url: https://www.geekpark.net/rss
+      tags: []
+    - name: feed
+      url: https://www.ifanr.com/feed
+      tags: []
+    - name: feed
+      url: https://www.landiannews.com/feed#/
+      tags: []
+    - name: feed
+      url: https://rsshub.app/huxiu
+      tags: []
+    - name: antirez
+      url: https://antirez.com/rss
+      tags: []
+    - name: andy_stewart
+      url: https://manateelazycat.github.io/feed.xml
+      tags: []
+    - name: blog_phodal_a_growth_engineer
+      url: https://www.phodal.com/blog/feeds/rss/#/
+      tags: []
+    - name: blog_jsbarretto_com
+      url: https://blog.jsbarretto.com/rss.xml
+      tags: []
+    - name: brendan_gregg_s_blog
+      url: https://www.brendangregg.com/blog/rss.xml
+      tags: []
+    - name: catcoding
+      url: https://catcoding.me/atom.xml
+      tags: []
+    - name: coding_horror
+      url: https://blog.codinghorror.com/rss/#/
+      tags: []
+    - name: joel_on_software
+      url: https://www.joelonsoftware.com/feed/
+      tags: []
+    - name: matt_might_s_blog
+      url: https://matt.might.net/articles/feed.rss
+      tags: []
+    - name: simon_willison_s_weblog
+      url: https://simonwillison.net/atom/everything/
+      tags: []
+    - name: feed
+      url: https://blog.mzh.ren/zh/index.xml
+      tags: []
+    - name: blog
+      url: https://laosu.tech/atom.xml
+      tags: []
+    - name: feed
+      url: https://shawnxie.top/rss.xml
+      tags: []
+    - name: feed
+      url: https://blog.brachiosoft.com/index.xml
+      tags: []
+    - name: abortretry_fail
+      url: https://www.abortretry.fail/feed
+      tags: []
+    - name: anildash_com
+      url: https://anildash.com/feed.xml
+      tags: []
+    - name: antirez_com
+      url: http://antirez.com/rss
+      tags: []
+    - name: aresluna_org
+      url: https://aresluna.org/main.rss
+      tags: []
+    - name: beej_us
+      url: https://beej.us/blog/rss.xml
+      tags: []
+    - name: bernsteinbear_com
+      url: https://bernsteinbear.com/feed.xml
+      tags: []
+    - name: berthub_eu
+      url: https://berthub.eu/articles/index.xml
+      tags: []
+    - name: blog_jim_nielsen_com
+      url: https://blog.jim-nielsen.com/feed.xml
+      tags: []
+    - name: blog_pixelmelt_dev
+      url: https://blog.pixelmelt.dev/rss/
+      tags: []
+    - name: bogdanthegeek_github_io
+      url: https://bogdanthegeek.github.io/blog/index.xml
+      tags: []
+    - name: borretti_me
+      url: https://borretti.me/feed.xml
+      tags: []
+    - name: brutecat_com
+      url: https://brutecat.com/rss.xml
+      tags: []
+    - name: buttondown_com_hillelwayne
+      url: https://buttondown.com/hillelwayne/rss
+      tags: []
+    - name: chadnauseam_com
+      url: https://chadnauseam.com/rss.xml
+      tags: []
+    - name: chiark_greenend_org_uk_sgtatham
+      url: https://www.chiark.greenend.org.uk/~sgtatham/quasiblog/feed.xml
+      tags: []
+    - name: computer_rip
+      url: https://computer.rip/rss.xml
+      tags: []
+    - name: construction_physics_com
+      url: https://www.construction-physics.com/feed
+      tags: []
+    - name: danielchasehooper_com
+      url: https://danielchasehooper.com/feed.xml
+      tags: []
+    - name: danieldelaney_net
+      url: https://danieldelaney.net/feed
+      tags: []
+    - name: danielwirtz_com
+      url: https://danielwirtz.com/rss.xml
+      tags: []
+    - name: daringfireball_net
+      url: https://daringfireball.net/feeds/main
+      tags: []
+    - name: derekthompson_org
+      url: https://www.theatlantic.com/feed/author/derek-thompson/
+      tags: []
+    - name: devblogs_microsoft_com_oldnewthing
+      url: https://devblogs.microsoft.com/oldnewthing/feed
+      tags: []
+    - name: dfarq_homeip_net
+      url: https://dfarq.homeip.net/feed/
+      tags: []
+    - name: downtowndougbrown_com
+      url: https://www.downtowndougbrown.com/feed/
+      tags: []
+    - name: dwarkesh_com
+      url: https://www.dwarkeshpatel.com/feed
+      tags: []
+    - name: dynomight_net
+      url: https://dynomight.net/feed.xml
+      tags: []
+    - name: eli_thegreenplace_net
+      url: https://eli.thegreenplace.net/feeds/all.atom.xml
+      tags: []
+    - name: entropicthoughts_com
+      url: https://entropicthoughts.com/feed.xml
+      tags: []
+    - name: ericmigi_com
+      url: https://ericmigi.com/rss.xml
+      tags: []
+    - name: evanhahn_com
+      url: https://evanhahn.com/feed.xml
+      tags: []
+    - name: experimental_history_com
+      url: https://www.experimental-history.com/feed
+      tags: []
+    - name: fabiensanglard_net
+      url: https://fabiensanglard.net/rss.xml
+      tags: []
+    - name: filfre_net
+      url: https://www.filfre.net/feed/
+      tags: []
+    - name: garymarcus_substack_com
+      url: https://garymarcus.substack.com/feed
+      tags: []
+    - name: geoffreylitt_com
+      url: https://www.geoffreylitt.com/feed.xml
+      tags: []
+    - name: geohot_github_io
+      url: https://geohot.github.io/blog/feed.xml
+      tags: []
+    - name: gilesthomas_com
+      url: https://gilesthomas.com/feed/rss.xml
+      tags: []
+    - name: grantslatton_com
+      url: https://grantslatton.com/rss.xml
+      tags: []
+    - name: gwern_net
+      url: https://gwern.substack.com/feed
+      tags: []
+    - name: herman_bearblog_dev
+      url: https://herman.bearblog.dev/feed/
+      tags: []
+    - name: hey_paris
+      url: https://hey.paris/index.xml
+      tags: []
+    - name: hugotunius_se
+      url: https://hugotunius.se/feed.xml
+      tags: []
+    - name: idiallo_com
+      url: https://idiallo.com/feed.rss
+      tags: []
+    - name: it_notes_dragas_net
+      url: https://it-notes.dragas.net/feed/
+      tags: []
+    - name: jayd_ml
+      url: https://jayd.ml/feed.xml
+      tags: []
+    - name: jeffgeerling_com
+      url: https://www.jeffgeerling.com/blog.xml
+      tags: []
+    - name: joanwestenberg_com
+      url: https://joanwestenberg.com/rss
+      tags: []
+    - name: johndcook_com
+      url: https://www.johndcook.com/blog/feed/
+      tags: []
+    - name: jyn_dev
+      url: https://jyn.dev/atom.xml
+      tags: []
+    - name: keygen_sh
+      url: https://keygen.sh/blog/feed.xml
+      tags: []
+    - name: krebsonsecurity_com
+      url: https://krebsonsecurity.com/feed/
+      tags: []
+    - name: lcamtuf_substack_com
+      url: https://lcamtuf.substack.com/feed
+      tags: []
+    - name: lucumr_pocoo_org
+      url: https://lucumr.pocoo.org/feed.atom
+      tags: []
+    - name: martinalderson_com
+      url: https://martinalderson.com/feed.xml
+      tags: []
+    - name: matduggan_com
+      url: https://matduggan.com/rss/
+      tags: []
+    - name: matklad_github_io
+      url: https://matklad.github.io/feed.xml
+      tags: []
+    - name: maurycyz_com
+      url: https://maurycyz.com/index.xml
+      tags: []
+    - name: micahflee_com
+      url: https://micahflee.com/feed/
+      tags: []
+    - name: michael_stapelberg_ch
+      url: https://michael.stapelberg.ch/feed.xml
+      tags: []
+    - name: miguelgrinberg_com
+      url: https://blog.miguelgrinberg.com/feed
+      tags: []
+    - name: minimaxir_com
+      url: https://minimaxir.com/index.xml
+      tags: []
+    - name: mitchellh_com
+      url: https://mitchellh.com/feed.xml
+      tags: []
+    - name: mjg59_dreamwidth_org
+      url: https://mjg59.dreamwidth.org/data/rss
+      tags: []
+    - name: nesbitt_io
+      url: https://nesbitt.io/feed.xml
+      tags: []
+    - name: oldvcr_blogspot_com
+      url: https://oldvcr.blogspot.com/feeds/posts/default
+      tags: []
+    - name: overreacted_io
+      url: https://overreacted.io/rss.xml
+      tags: []
+    - name: paulgraham_com
+      url: http://www.aaronsw.com/2002/feeds/pgessays.rss
+      tags: []
+    - name: philiplaine_com
+      url: https://philiplaine.com/index.xml
+      tags: []
+    - name: pluralistic_net
+      url: https://pluralistic.net/feed/
+      tags: []
+    - name: rachelbythebay_com
+      url: https://rachelbythebay.com/w/atom.xml
+      tags: []
+    - name: rakhim_exotext_com
+      url: https://rakhim.exotext.com/rss.xml
+      tags: []
+    - name: refactoringenglish_com
+      url: https://refactoringenglish.com/index.xml
+      tags: []
+    - name: righto_com
+      url: https://www.righto.com/feeds/posts/default
+      tags: []
+    - name: seangoedecke_com
+      url: https://www.seangoedecke.com/rss.xml
+      tags: []
+    - name: shkspr_mobi
+      url: https://shkspr.mobi/blog/feed/
+      tags: []
+    - name: simone_org
+      url: https://simone.org/feed/
+      tags: []
+    - name: skyfall_dev
+      url: https://skyfall.dev/rss.xml
+      tags: []
+    - name: steveblank_com
+      url: https://steveblank.com/feed/
+      tags: []
+    - name: susam_net
+      url: https://susam.net/feed.xml
+      tags: []
+    - name: tedium_co
+      url: https://feed.tedium.co/
+      tags: []
+    - name: tedunangst_com
+      url: https://www.tedunangst.com/flak/rss
+      tags: []
+    - name: terriblesoftware_org
+      url: https://terriblesoftware.org/feed/
+      tags: []
+    - name: timsh_org
+      url: https://timsh.org/rss/
+      tags: []
+    - name: tomrenner_com
+      url: https://tomrenner.com/index.xml
+      tags: []
+    - name: troyhunt_com
+      url: https://www.troyhunt.com/rss/
+      tags: []
+    - name: utcc_utoronto_ca_cks
+      url: https://utcc.utoronto.ca/~cks/space/blog/?atom
+      tags: []
+    - name: wheresyoured_at
+      url: https://www.wheresyoured.at/rss/
+      tags: []
+    - name: worksonmymachine_substack_com
+      url: https://worksonmymachine.substack.com/feed
+      tags: []
+    - name: xania_org
+      url: https://xania.org/feed
+      tags: []
+    - name: xeiaso_net
+      url: https://xeiaso.net/blog.rss
+      tags: []
+    - name: hacker_news
+      url: https://news.ycombinator.com/rss
+      tags: []
+    - name: linux_do
+      url: https://linux.do/latest.rss
+      tags: []
+    - name: linux_do
+      url: https://linux.do/top.rss
+      tags: []
+    - name: v2ex
+      url: https://v2ex.com/index.xml
+      tags: []
+    - name: github_all_languages_weekly_trending
+      url: https://mshibanami.github.io/GitHubTrendingRSS/weekly/all.xml
+      tags: []
+    - name: mac_mac_mac_mac
+      url: https://www.waerfa.com/feed#/
+      tags: []
+    - name: feed
+      url: https://www.appinn.com/feed/
+      tags: []
+    - name: feed
+      url: https://feed.iplaysoft.com/#/
+      tags: []
 interval: '*/10 * * * *'

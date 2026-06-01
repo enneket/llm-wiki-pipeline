@@ -39,6 +39,11 @@ func NewClient(apiKey, baseURL, model string) *Client {
 	}
 }
 
+// EmbedURL returns the configured embedding endpoint URL
+func (c *Client) EmbedURL() string {
+	return c.embedURL
+}
+
 // NewClientWithEmbed creates an LLM client with separate embedding endpoint
 func NewClientWithEmbed(apiKey, baseURL, model, embedURL, embedKey string) *Client {
 	provider := detectProvider(baseURL)

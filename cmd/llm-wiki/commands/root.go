@@ -44,20 +44,42 @@ func init() {
 	rootCmd.AddCommand(reloadCmd)
 }
 
-// loadApp creates the service app with current config
+// loadApp creates the service app with DB-backed config
 func loadApp() (*service.App, error) {
-	cfg, err := config.NewLoader(configDir).Load()
-	if err != nil {
-		return nil, fmt.Errorf("load config: %w", err)
-	}
+	ctx := context.Background()
 
 	dbCfg := database.Config{DatabaseURL: dbURL}
-	db, err := database.New(context.Background(), dbCfg)
+	db, err := database.New(ctx, dbCfg)
 	if err != nil {
 		return nil, fmt.Errorf("db: %w", err)
 	}
 
+	cfg, err := config.LoadFromDBWithDefaults(ctx, db)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
 	return service.New(cfg, db), nil
+}
+
+// loadConfigOnly connects to DB and loads config without creating a full App
+func loadConfigOnly() (*config.Config, *database.DB, error) {
+	ctx := context.Background()
+
+	dbCfg := database.Config{DatabaseURL: dbURL}
+	db, err := database.New(ctx, dbCfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("db: %w", err)
+	}
+
+	cfg, err := config.LoadFromDBWithDefaults(ctx, db)
+	if err != nil {
+		db.Close()
+		return nil, nil, fmt.Errorf("load config: %w", err)
+	}
+
+	return cfg, db, nil
 }
 
 // --- feed command ---
@@ -69,10 +91,11 @@ func init() {
 		Use:   "list",
 		Short: "List all configured feeds",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.NewLoader(configDir).Load()
+			cfg, db, err := loadConfigOnly()
 			if err != nil {
 				return err
 			}
+			defer db.Close()
 			for _, f := range cfg.Feeds.Feeds {
 				fmt.Printf("%s\t%s\ttags=%v\n", f.Name, f.URL, f.Tags)
 			}
@@ -141,10 +164,11 @@ func init() {
 		Use:   "tags",
 		Short: "Show interest tags",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.NewLoader(configDir).Load()
+			cfg, db, err := loadConfigOnly()
 			if err != nil {
 				return err
 			}
+			defer db.Close()
 			fmt.Println("Primary:", cfg.Filter.Keyword.Tags)
 			return nil
 		},
@@ -155,10 +179,11 @@ func init() {
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				cfg, err := config.NewLoader(configDir).Load()
+				cfg, db, err := loadConfigOnly()
 				if err != nil {
 					return err
 				}
+				defer db.Close()
 				fmt.Println("mode:", cfg.Filter.Mode)
 				return nil
 			}
@@ -274,13 +299,13 @@ var startCmd = &cobra.Command{
 
 var reloadCmd = &cobra.Command{
 	Use:   "reload",
-	Short: "Hot reload all config files",
+	Short: "Hot reload config from database",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		loader := config.NewLoader(configDir)
-		cfg, err := loader.Reload()
+		cfg, db, err := loadConfigOnly()
 		if err != nil {
 			return err
 		}
+		defer db.Close()
 		fmt.Printf("config reloaded — filter mode=%s feeds=%d\n", cfg.Filter.Mode, len(cfg.Feeds.Feeds))
 		return nil
 	},

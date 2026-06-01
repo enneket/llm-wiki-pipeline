@@ -12,6 +12,7 @@ import (
 	"llm-wiki/internal/step1"
 	"llm-wiki/internal/step2"
 	"llm-wiki/internal/step3"
+	"llm-wiki/internal/web"
 	"llm-wiki/pkg/database"
 	"llm-wiki/pkg/llm"
 	vectpkg "llm-wiki/pkg/vector"
@@ -30,6 +31,7 @@ type App struct {
 	embedder   *vectpkg.Embedder
 	writer     *step3.WikiWriter
 	ingest     *step3.Ingest
+	webServer  *web.Server
 }
 
 // New creates and wires all components
@@ -76,6 +78,7 @@ func New(cfg *config.Config, db *database.DB) *App {
 	app.filter.SetLLMClient(llmClient)
 
 	app.ingest = step3.NewIngest(llmClient, app.embedder, app.writer, app.dedup)
+	app.webServer = web.NewServer(db, llmClient)
 
 	// Wire scheduler callbacks: fetch → filter → ingest (direct call)
 	scheduler.OnNewItem(func(feedName string, item *step1.Item, filePath string) {
@@ -189,8 +192,16 @@ func (a *App) moveTo(src, targetDir string) (string, error) {
 	return dest, nil
 }
 
-// Start begins the scheduler and blocks
+// Start begins the scheduler and web server, then blocks
 func (a *App) Start(ctx context.Context) error {
+	// Start web server in background
+	go func() {
+		if err := a.webServer.Start(ctx); err != nil {
+			log.Printf("[app] web server error: %v", err)
+		}
+	}()
+
+	// Start scheduler (blocks until ctx.Done)
 	a.scheduler.Start(ctx)
 	return nil
 }
