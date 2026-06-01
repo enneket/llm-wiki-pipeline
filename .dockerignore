@@ -1,0 +1,18 @@
+# Git
+.git
+.gitignore
+
+# Data directories (will be mounted as volumes)
+data/
+
+# Environment files (will be mounted)
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+llm-wiki
+
+# IDE
+.idea
+.vscode

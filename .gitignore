@@ -21,3 +21,7 @@ llm-wiki
 
 # Runtime logs
 logs/
+
+# Test artifacts
+tests/node_modules/
+tests/test-results/
