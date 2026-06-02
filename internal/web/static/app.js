@@ -300,6 +300,7 @@ function exportFeeds(format) {
 }
 
 let fetchPollInterval = null;
+let isFetching = false;
 
 async function fetchFeeds() {
     try {
@@ -313,6 +314,7 @@ async function fetchFeeds() {
             }
             return;
         }
+        isFetching = true;
         startFetchProgress();
     } catch (err) {
         alert('拉取失败: ' + err.message);
@@ -326,6 +328,8 @@ function startFetchProgress() {
     const fetchBtn = document.getElementById('fetch-btn');
 
     progressDiv.style.display = 'flex';
+    progressFill.style.width = '0%';
+    progressText.textContent = '准备中...';
     fetchBtn.disabled = true;
     fetchBtn.textContent = '拉取中...';
 
@@ -334,21 +338,24 @@ function startFetchProgress() {
             const res = await fetch('/api/feeds/fetch/status');
             const data = await res.json();
 
-            if (!data.running) {
+            if (isFetching && !data.running && data.total > 0 && data.completed >= data.total) {
+                // Fetch completed
                 stopFetchProgress();
                 loadFeeds();
                 return;
             }
 
-            const percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
-            progressFill.style.width = percent + '%';
-            progressText.textContent = data.current 
-                ? `${data.completed}/${data.total} - ${data.current}` 
-                : `${data.completed}/${data.total}`;
+            if (data.running) {
+                const percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
+                progressFill.style.width = percent + '%';
+                progressText.textContent = data.current 
+                    ? `${data.completed}/${data.total} - ${data.current}` 
+                    : `${data.completed}/${data.total}`;
+            }
         } catch (err) {
             console.error('Failed to fetch progress:', err);
         }
-    }, 500);
+    }, 300);
 }
 
 function stopFetchProgress() {
@@ -356,6 +363,7 @@ function stopFetchProgress() {
         clearInterval(fetchPollInterval);
         fetchPollInterval = null;
     }
+    isFetching = false;
 
     const progressDiv = document.getElementById('fetch-progress');
     const fetchBtn = document.getElementById('fetch-btn');
