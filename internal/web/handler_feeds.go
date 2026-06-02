@@ -172,11 +172,13 @@ func (s *Server) handleFetchFeeds(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set running state before starting goroutine
+	s.fetchState.Running = true
+	s.fetchState.Total = 0
+	s.fetchState.Completed = 0
+	s.fetchState.Current = "准备中..."
+
 	go func() {
-		s.fetchState.Running = true
-		s.fetchState.Total = 0
-		s.fetchState.Completed = 0
-		s.fetchState.Current = ""
 		s.onFetch()
 		s.fetchState.Running = false
 		s.fetchState.Current = ""

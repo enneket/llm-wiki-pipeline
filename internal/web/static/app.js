@@ -300,7 +300,6 @@ function exportFeeds(format) {
 }
 
 let fetchPollInterval = null;
-let isFetching = false;
 
 async function fetchFeeds() {
     try {
@@ -314,7 +313,6 @@ async function fetchFeeds() {
             }
             return;
         }
-        isFetching = true;
         startFetchProgress();
     } catch (err) {
         alert('拉取失败: ' + err.message);
@@ -338,20 +336,17 @@ function startFetchProgress() {
             const res = await fetch('/api/feeds/fetch/status');
             const data = await res.json();
 
-            if (isFetching && !data.running && data.total > 0 && data.completed >= data.total) {
-                // Fetch completed
+            if (!data.running) {
                 stopFetchProgress();
                 loadFeeds();
                 return;
             }
 
-            if (data.running) {
-                const percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
-                progressFill.style.width = percent + '%';
-                progressText.textContent = data.current 
-                    ? `${data.completed}/${data.total} - ${data.current}` 
-                    : `${data.completed}/${data.total}`;
-            }
+            const percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
+            progressFill.style.width = percent + '%';
+            progressText.textContent = data.current 
+                ? `${data.completed}/${data.total} - ${data.current}` 
+                : `${data.completed}/${data.total}`;
         } catch (err) {
             console.error('Failed to fetch progress:', err);
         }
@@ -363,7 +358,6 @@ function stopFetchProgress() {
         clearInterval(fetchPollInterval);
         fetchPollInterval = null;
     }
-    isFetching = false;
 
     const progressDiv = document.getElementById('fetch-progress');
     const fetchBtn = document.getElementById('fetch-btn');
