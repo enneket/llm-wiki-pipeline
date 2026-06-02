@@ -218,7 +218,8 @@ button:hover {
 
 .import-section,
 .export-section,
-.fetch-section {
+.fetch-section,
+.add-section {
     display: flex;
     gap: 8px;
 }

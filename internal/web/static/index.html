@@ -68,10 +68,12 @@
             <!-- Feeds Tab -->
             <section id="feeds" class="tab-content">
                 <div class="feed-toolbar">
+                    <div class="add-section">
+                        <button onclick="showAddFeed()" class="add-btn">添加 Feed</button>
+                    </div>
                     <div class="import-section">
                         <input type="file" id="import-file" accept=".opml,.xml,.txt" style="display:none">
                         <button onclick="document.getElementById('import-file').click()">导入 OPML/URL</button>
-                        <button onclick="showAddFeed()" class="add-btn">添加 Feed</button>
                     </div>
                     <div class="export-section">
                         <button onclick="exportFeeds('json')">导出 JSON</button>
