@@ -552,13 +552,14 @@ async function fetchDocuments() {
         const items = data.items || [];
         list.innerHTML = items.map(d => {
             const statusMap = { pending: '⏳ 待处理', processing: '🔄 处理中', done: '✅ 已完成', failed: '❌ 失败' };
+            const displayTime = d.published || d.created_at;
             return `
                 <div class="doc-item">
                     <h3><a href="#" onclick="loadDocPage(${d.id}); return false;">${escapeHtml(d.title || '无标题')}</a></h3>
                     <div class="doc-item-meta">
                         <span>来源: ${escapeHtml(d.feed_name || '-')}</span>
                         <span>${statusMap[d.status] || d.status}</span>
-                        <span>${formatTime(d.created_at)}</span>
+                        <span>${formatTime(displayTime)}</span>
                     </div>
                 </div>
             `;

@@ -17,6 +17,7 @@ type DocumentItem struct {
 	Source    string   `json:"source"`
 	Status    string   `json:"status"`
 	Summary   string   `json:"summary"`
+	Published *string  `json:"published,omitempty"`
 	CreatedAt string   `json:"created_at"`
 }
 
@@ -30,6 +31,7 @@ type DocumentDetail struct {
 	Status     string   `json:"status"`
 	Content    string   `json:"content"`
 	Confidence *float32 `json:"confidence,omitempty"`
+	Published  *string  `json:"published,omitempty"`
 	CreatedAt  string   `json:"created_at"`
 }
 
@@ -124,7 +126,8 @@ func (s *Server) handleListDocuments(w http.ResponseWriter, r *http.Request) {
 	// Fetch page
 	listQuery := fmt.Sprintf(`
 		SELECT d.id, d.title, d.url, COALESCE(f.name, ''), d.tags, d.source,
-		       COALESCE(iq.status, 'pending'), LEFT(d.content, 200), d.created_at::text
+		       COALESCE(iq.status, 'pending'), LEFT(d.content, 200), 
+		       d.published::text, d.created_at::text
 		FROM documents d
 		LEFT JOIN feeds f ON f.id = d.feed_id
 		LEFT JOIN ingest_queue iq ON iq.document_id = d.id
@@ -144,7 +147,7 @@ func (s *Server) handleListDocuments(w http.ResponseWriter, r *http.Request) {
 	var items []DocumentItem
 	for rows.Next() {
 		var item DocumentItem
-		if err := rows.Scan(&item.ID, &item.Title, &item.URL, &item.FeedName, &item.Tags, &item.Source, &item.Status, &item.Summary, &item.CreatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.Title, &item.URL, &item.FeedName, &item.Tags, &item.Source, &item.Status, &item.Summary, &item.Published, &item.CreatedAt); err != nil {
 			http.Error(w, "failed to scan document", http.StatusInternalServerError)
 			return
 		}
@@ -172,12 +175,13 @@ func (s *Server) handleGetDocument(w http.ResponseWriter, r *http.Request) {
 	var doc DocumentDetail
 	err = s.db.Pool.QueryRow(ctx, `
 		SELECT d.id, d.title, d.url, COALESCE(f.name, ''), d.tags, d.source,
-		       COALESCE(iq.status, 'pending'), d.content, d.confidence, d.created_at::text
+		       COALESCE(iq.status, 'pending'), d.content, d.confidence, 
+		       d.published::text, d.created_at::text
 		FROM documents d
 		LEFT JOIN feeds f ON f.id = d.feed_id
 		LEFT JOIN ingest_queue iq ON iq.document_id = d.id
 		WHERE d.id = $1
-	`, id).Scan(&doc.ID, &doc.Title, &doc.URL, &doc.FeedName, &doc.Tags, &doc.Source, &doc.Status, &doc.Content, &doc.Confidence, &doc.CreatedAt)
+	`, id).Scan(&doc.ID, &doc.Title, &doc.URL, &doc.FeedName, &doc.Tags, &doc.Source, &doc.Status, &doc.Content, &doc.Confidence, &doc.Published, &doc.CreatedAt)
 	if err != nil {
 		http.Error(w, "document not found", http.StatusNotFound)
 		return

@@ -317,11 +317,14 @@ func (a *App) saveDocRecord(ctx context.Context, url, contentHash, title, conten
 		}
 	}
 
+	// Extract published time
+	published := extractPublished(content)
+
 	_, err := a.db.Pool.Exec(ctx, `
-		INSERT INTO documents (url, title, content_hash, content, tags, source, file_path, feed_id)
-		VALUES ($1, $2, $3, $4, $5, $6, '', $7)
-		ON CONFLICT (url) DO UPDATE SET source = EXCLUDED.source, title = EXCLUDED.title, feed_id = EXCLUDED.feed_id
-	`, url, title, contentHash, content, []string{}, source, feedID)
+		INSERT INTO documents (url, title, content_hash, content, tags, source, file_path, feed_id, published)
+		VALUES ($1, $2, $3, $4, $5, $6, '', $7, $8)
+		ON CONFLICT (url) DO UPDATE SET source = EXCLUDED.source, title = EXCLUDED.title, feed_id = EXCLUDED.feed_id, published = EXCLUDED.published
+	`, url, title, contentHash, content, []string{}, source, feedID, published)
 	if err != nil {
 		log.Printf("[db] save doc record: %v", err)
 	}
@@ -343,4 +346,20 @@ func extractTitle(content string) string {
 		}
 	}
 	return ""
+}
+
+func extractPublished(content string) *time.Time {
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(line, "published:") {
+			publishedStr := strings.TrimSpace(strings.TrimPrefix(line, "published:"))
+			if t, err := time.Parse(time.RFC3339, publishedStr); err == nil {
+				return &t
+			}
+			// Try other formats
+			if t, err := time.Parse("2006-01-02", publishedStr); err == nil {
+				return &t
+			}
+		}
+	}
+	return nil
 }
