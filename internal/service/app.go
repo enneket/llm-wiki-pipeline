@@ -122,6 +122,18 @@ func (a *App) processOne(ctx context.Context, feedName, filePath string) {
 		return
 	}
 
+	// Check if URL already exists in database
+	url := extractURL(string(content))
+	if url != "" {
+		var exists bool
+		err := a.db.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM documents WHERE url = $1)`, url).Scan(&exists)
+		if err == nil && exists {
+			log.Printf("[pipeline] skip duplicate: %s", url)
+			os.Remove(filePath)
+			return
+		}
+	}
+
 	// Step 2: filter — use feed-level tags (authoritative) + doc tags (supplemental)
 	itemTags := a.tagsForFeed(feedName)
 	if len(itemTags) == 0 {
@@ -145,7 +157,6 @@ func (a *App) processOne(ctx context.Context, feedName, filePath string) {
 	}
 
 	// Save URL+hash to PG as raw record (before filter)
-	url := extractURL(string(content))
 	title := extractTitle(string(content))
 	contentHash := step2.ComputeHash(title, string(content))
 	a.saveDocRecord(ctx, url, contentHash, title, string(content), "raw", feedName)
