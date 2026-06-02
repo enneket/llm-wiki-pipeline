@@ -156,10 +156,21 @@ async function saveEditFeed() {
     }
 }
 
-async function addFeed() {
-    const name = document.getElementById('feed-name').value.trim();
-    const url = document.getElementById('feed-url').value.trim();
-    const tags = document.getElementById('feed-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+function showAddFeed() {
+    document.getElementById('feed-add-name').value = '';
+    document.getElementById('feed-add-url').value = '';
+    document.getElementById('feed-add-tags').value = '';
+    document.getElementById('feed-add-dialog').style.display = 'flex';
+}
+
+function cancelAddFeed() {
+    document.getElementById('feed-add-dialog').style.display = 'none';
+}
+
+async function saveAddFeed() {
+    const name = document.getElementById('feed-add-name').value.trim();
+    const url = document.getElementById('feed-add-url').value.trim();
+    const tags = document.getElementById('feed-add-tags').value.split(',').map(t => t.trim()).filter(Boolean);
 
     if (!name || !url) {
         alert('请输入名称和 URL');
@@ -175,9 +186,7 @@ async function addFeed() {
 
         if (!res.ok) throw new Error(await res.text());
 
-        document.getElementById('feed-name').value = '';
-        document.getElementById('feed-url').value = '';
-        document.getElementById('feed-tags').value = '';
+        cancelAddFeed();
         loadFeeds();
     } catch (err) {
         alert('添加失败: ' + err.message);

@@ -249,6 +249,14 @@ button:hover {
     background: #d35400 !important;
 }
 
+.add-btn {
+    background: #27ae60 !important;
+}
+
+.add-btn:hover {
+    background: #229954 !important;
+}
+
 .export-section button {
     background: #8e44ad;
 }
