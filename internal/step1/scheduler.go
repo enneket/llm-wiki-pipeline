@@ -18,6 +18,7 @@ type Scheduler struct {
 	globalInterval string
 	rawDataPath    string
 	onNewItem      func(feedName string, item *Item, filePath string)
+	onProgress     func(total, completed int, current string)
 }
 
 func NewScheduler(fetcher *Fetcher, rawDataPath string) *Scheduler {
@@ -52,6 +53,11 @@ func (s *Scheduler) Register(feed Feed) error {
 // OnNewItem registers a callback for each new item fetched
 func (s *Scheduler) OnNewItem(fn func(feedName string, item *Item, filePath string)) {
 	s.onNewItem = fn
+}
+
+// OnProgress registers a callback for fetch progress updates
+func (s *Scheduler) OnProgress(fn func(total, completed int, current string)) {
+	s.onProgress = fn
 }
 
 // Feeds returns the registered feeds
@@ -108,12 +114,29 @@ func (s *Scheduler) fetchOne(feed Feed) {
 
 // RunOnce triggers all feeds once (for manual fetch or initial bootstrap)
 func (s *Scheduler) RunOnce() {
+	total := len(s.feeds)
+	completed := 0
+
+	if s.onProgress != nil {
+		s.onProgress(total, 0, "")
+	}
+
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 	for _, feed := range s.feeds {
 		wg.Add(1)
 		go func(f Feed) {
 			defer wg.Done()
+			if s.onProgress != nil {
+				s.onProgress(total, completed, f.Name)
+			}
 			s.fetchOne(f)
+			mu.Lock()
+			completed++
+			mu.Unlock()
+			if s.onProgress != nil {
+				s.onProgress(total, completed, f.Name)
+			}
 		}(feed)
 	}
 	wg.Wait()

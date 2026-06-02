@@ -91,6 +91,11 @@ func New(cfg *config.Config, db *database.DB) *App {
 		app.processOne(ctx, feedName, filePath)
 	})
 
+	// Wire progress callback
+	scheduler.OnProgress(func(total, completed int, current string) {
+		app.webServer.UpdateFetchProgress(total, completed, current)
+	})
+
 	scheduler.SetGlobalInterval(cfg.Feeds.Interval)
 
 	// Register feeds from config

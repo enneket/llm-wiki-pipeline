@@ -19,12 +19,20 @@ import (
 var staticFiles embed.FS
 
 type Server struct {
-	db        *database.DB
-	llm       *llm.Client
-	port      string
-	cfg       *config.Config
-	apiToken  string
-	onFetch   func()
+	db         *database.DB
+	llm        *llm.Client
+	port       string
+	cfg        *config.Config
+	apiToken   string
+	onFetch    func()
+	fetchState FetchState
+}
+
+type FetchState struct {
+	Running    bool   `json:"running"`
+	Total      int    `json:"total"`
+	Completed  int    `json:"completed"`
+	Current    string `json:"current"`
 }
 
 func NewServer(db *database.DB, llmClient *llm.Client, cfg *config.Config) *Server {
@@ -85,6 +93,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("GET /api/feeds", s.handleListFeeds)
 	mux.HandleFunc("POST /api/feeds", s.handleAddFeed)
 	mux.HandleFunc("POST /api/feeds/fetch", s.handleFetchFeeds)
+	mux.HandleFunc("GET /api/feeds/fetch/status", s.handleFetchStatus)
 	mux.HandleFunc("PUT /api/feeds/{id}", s.handleUpdateFeed)
 	mux.HandleFunc("DELETE /api/feeds/{id}", s.handleDeleteFeed)
 	mux.HandleFunc("GET /api/feeds/export", s.handleExportFeeds)

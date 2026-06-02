@@ -299,14 +299,70 @@ function exportFeeds(format) {
     window.location.href = `/api/feeds/export?format=${format}`;
 }
 
+let fetchPollInterval = null;
+
 async function fetchFeeds() {
     try {
         const res = await fetch('/api/feeds/fetch', { method: 'POST' });
-        if (!res.ok) throw new Error(await res.text());
-        alert('已开始拉取，请稍后查看结果');
+        if (!res.ok) {
+            const err = await res.text();
+            if (err.includes('already in progress')) {
+                alert('拉取正在进行中');
+            } else {
+                throw new Error(err);
+            }
+            return;
+        }
+        startFetchProgress();
     } catch (err) {
         alert('拉取失败: ' + err.message);
     }
+}
+
+function startFetchProgress() {
+    const progressDiv = document.getElementById('fetch-progress');
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    const fetchBtn = document.getElementById('fetch-btn');
+
+    progressDiv.style.display = 'flex';
+    fetchBtn.disabled = true;
+    fetchBtn.textContent = '拉取中...';
+
+    fetchPollInterval = setInterval(async () => {
+        try {
+            const res = await fetch('/api/feeds/fetch/status');
+            const data = await res.json();
+
+            if (!data.running) {
+                stopFetchProgress();
+                loadFeeds();
+                return;
+            }
+
+            const percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
+            progressFill.style.width = percent + '%';
+            progressText.textContent = data.current 
+                ? `${data.completed}/${data.total} - ${data.current}` 
+                : `${data.completed}/${data.total}`;
+        } catch (err) {
+            console.error('Failed to fetch progress:', err);
+        }
+    }, 500);
+}
+
+function stopFetchProgress() {
+    if (fetchPollInterval) {
+        clearInterval(fetchPollInterval);
+        fetchPollInterval = null;
+    }
+
+    const progressDiv = document.getElementById('fetch-progress');
+    const fetchBtn = document.getElementById('fetch-btn');
+
+    progressDiv.style.display = 'none';
+    fetchBtn.disabled = false;
+    fetchBtn.textContent = '立即拉取';
 }
 
 // Settings

@@ -167,10 +167,35 @@ func (s *Server) handleFetchFeeds(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go s.onFetch()
+	if s.fetchState.Running {
+		http.Error(w, "fetch already in progress", http.StatusConflict)
+		return
+	}
+
+	go func() {
+		s.fetchState.Running = true
+		s.fetchState.Total = 0
+		s.fetchState.Completed = 0
+		s.fetchState.Current = ""
+		s.onFetch()
+		s.fetchState.Running = false
+		s.fetchState.Current = ""
+	}()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "fetching"})
+}
+
+func (s *Server) handleFetchStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(s.fetchState)
+}
+
+// UpdateFetchProgress updates the fetch progress (called by scheduler)
+func (s *Server) UpdateFetchProgress(total, completed int, current string) {
+	s.fetchState.Total = total
+	s.fetchState.Completed = completed
+	s.fetchState.Current = current
 }
 
 func (s *Server) handleExportFeeds(w http.ResponseWriter, r *http.Request) {

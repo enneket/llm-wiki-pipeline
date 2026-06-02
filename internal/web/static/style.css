@@ -179,6 +179,38 @@ button:hover {
     gap: 10px;
 }
 
+.fetch-progress {
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    background: #f9f9f9;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 20px;
+    background: #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3498db, #2ecc71);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.progress-text {
+    font-size: 14px;
+    color: #666;
+    min-width: 150px;
+}
+
 .feed-item {
     display: flex;
     justify-content: space-between;
