@@ -98,6 +98,11 @@ func New(cfg *config.Config, db *database.DB) *App {
 
 	scheduler.SetGlobalInterval(cfg.Feeds.Interval)
 
+	// Set default interval if not configured
+	if cfg.Feeds.Interval == "" {
+		scheduler.SetGlobalInterval("0 */6 * * *")
+	}
+
 	// Register feeds from config
 	for _, f := range cfg.Feeds.Feeds {
 		scheduler.Register(step1.Feed{
@@ -212,6 +217,11 @@ func (a *App) moveTo(src, targetDir string) (string, error) {
 
 // Start begins the scheduler and web server, then blocks
 func (a *App) Start(ctx context.Context) error {
+	// Load feeds from database and register to scheduler
+	if err := a.loadFeedsFromDB(ctx); err != nil {
+		log.Printf("[app] failed to load feeds from DB: %v", err)
+	}
+
 	// Start web server in background
 	go func() {
 		if err := a.webServer.Start(ctx); err != nil {
@@ -221,6 +231,35 @@ func (a *App) Start(ctx context.Context) error {
 
 	// Start scheduler (blocks until ctx.Done)
 	a.scheduler.Start(ctx)
+	return nil
+}
+
+// loadFeedsFromDB loads feeds from database and registers them to scheduler
+func (a *App) loadFeedsFromDB(ctx context.Context) error {
+	rows, err := a.db.Pool.Query(ctx, `SELECT name, url, tags FROM feeds ORDER BY name`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	count := 0
+	for rows.Next() {
+		var name, url string
+		var tags []string
+		if err := rows.Scan(&name, &url, &tags); err != nil {
+			log.Printf("[app] scan feed: %v", err)
+			continue
+		}
+		if err := a.scheduler.Register(step1.Feed{
+			Name: name,
+			URL:  url,
+			Tags: tags,
+		}); err != nil {
+			log.Printf("[app] register feed %s: %v", name, err)
+		}
+		count++
+	}
+	log.Printf("[app] loaded %d feeds from database", count)
 	return nil
 }
 
