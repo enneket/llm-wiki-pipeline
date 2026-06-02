@@ -19,9 +19,10 @@ function switchTab(tabName) {
 }
 
 document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
+    tab.addEventListener('click', (e) => {
+        e.preventDefault();
         const tabName = tab.dataset.tab;
-        window.location.hash = tabName;
+        history.replaceState(null, '', '#' + tabName);
         switchTab(tabName);
     });
 });
