@@ -92,11 +92,15 @@ func (f *Fetcher) parseRSS(body []byte) ([]Item, error) {
 	}
 	items := make([]Item, 0, len(rss.Channel.Items))
 	for _, i := range rss.Channel.Items {
+		content := i.Content.Encoded
+		if content == "" {
+			content = i.Description
+		}
 		items = append(items, Item{
 			Title:       i.Title,
 			URL:         i.Link,
 			Description: i.Description,
-			Content:     i.Content.Encoded,
+			Content:     content,
 			Published:   parseTime(i.PubDate),
 		})
 	}
