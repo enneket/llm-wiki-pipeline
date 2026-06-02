@@ -82,12 +82,57 @@ async function loadFeeds() {
                     <h3>${escapeHtml(f.name)}</h3>
                     <p>${escapeHtml(f.url)}</p>
                     ${f.tags.length ? `<p>标签: ${f.tags.join(', ')}</p>` : ''}
+                    <p>间隔: ${escapeHtml(f.interval)}</p>
                 </div>
-                <button class="delete-btn" onclick="deleteFeed(${f.id})">删除</button>
+                <div class="feed-actions">
+                    <button class="edit-btn" onclick="editFeed(${f.id}, '${escapeHtml(f.name)}', '${escapeHtml(f.url)}', '${f.tags.join(',')}', '${escapeHtml(f.interval)}')">编辑</button>
+                    <button class="delete-btn" onclick="deleteFeed(${f.id})">删除</button>
+                </div>
             </div>
         `).join('');
     } catch (err) {
         console.error('Failed to load feeds:', err);
+    }
+}
+
+function editFeed(id, name, url, tags, interval) {
+    document.getElementById('feed-edit-id').value = id;
+    document.getElementById('feed-edit-name').value = name;
+    document.getElementById('feed-edit-url').value = url;
+    document.getElementById('feed-edit-tags').value = tags;
+    document.getElementById('feed-edit-interval').value = interval;
+    document.getElementById('feed-edit-dialog').style.display = 'block';
+}
+
+function cancelEditFeed() {
+    document.getElementById('feed-edit-dialog').style.display = 'none';
+}
+
+async function saveEditFeed() {
+    const id = document.getElementById('feed-edit-id').value;
+    const name = document.getElementById('feed-edit-name').value.trim();
+    const url = document.getElementById('feed-edit-url').value.trim();
+    const tags = document.getElementById('feed-edit-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+    const interval = document.getElementById('feed-edit-interval').value.trim();
+
+    if (!name || !url) {
+        alert('请输入名称和 URL');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/feeds/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, url, tags, interval })
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+
+        cancelEditFeed();
+        loadFeeds();
+    } catch (err) {
+        alert('更新失败: ' + err.message);
     }
 }
 

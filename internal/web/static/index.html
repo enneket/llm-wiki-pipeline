@@ -73,7 +73,7 @@
                     <input id="feed-tags" placeholder="标签 (逗号分隔)">
                     <button onclick="addFeed()">添加 Feed</button>
                 </div>
-                <div class="feed-actions">
+                <div class="feed-toolbar">
                     <div class="import-section">
                         <input type="file" id="import-file" accept=".opml,.xml,.txt" style="display:none">
                         <button onclick="document.getElementById('import-file').click()">导入 OPML/URL</button>
@@ -228,6 +228,35 @@
             </section>
         </main>
     </div>
+
+    <!-- Feed Edit Dialog -->
+    <div id="feed-edit-dialog" class="dialog-overlay" style="display:none">
+        <div class="dialog">
+            <h3>编辑 Feed</h3>
+            <input type="hidden" id="feed-edit-id">
+            <div class="form-group">
+                <label>名称</label>
+                <input type="text" id="feed-edit-name" placeholder="Feed 名称">
+            </div>
+            <div class="form-group">
+                <label>URL</label>
+                <input type="text" id="feed-edit-url" placeholder="Feed URL">
+            </div>
+            <div class="form-group">
+                <label>标签 (逗号分隔)</label>
+                <input type="text" id="feed-edit-tags" placeholder="AI,LLM,Rust">
+            </div>
+            <div class="form-group">
+                <label>采集间隔 (Cron)</label>
+                <input type="text" id="feed-edit-interval" placeholder="0 */6 * * *">
+            </div>
+            <div class="dialog-actions">
+                <button onclick="saveEditFeed()">保存</button>
+                <button onclick="cancelEditFeed()" class="cancel-btn">取消</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/app.js"></script>
 </body>
 </html>

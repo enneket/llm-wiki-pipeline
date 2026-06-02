@@ -116,6 +116,51 @@ func (s *Server) handleDeleteFeed(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 }
 
+func (s *Server) handleUpdateFeed(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "invalid feed id", http.StatusBadRequest)
+		return
+	}
+
+	var req AddFeedRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" || req.URL == "" {
+		http.Error(w, "name and url are required", http.StatusBadRequest)
+		return
+	}
+
+	if req.Interval == "" {
+		req.Interval = "0 */6 * * *"
+	}
+	if req.Tags == nil {
+		req.Tags = []string{}
+	}
+
+	ctx := r.Context()
+	result, err := s.db.Pool.Exec(ctx, `
+		UPDATE feeds SET name = $1, url = $2, tags = $3, interval = $4, updated_at = NOW()
+		WHERE id = $5
+	`, req.Name, req.URL, req.Tags, req.Interval, id)
+	if err != nil {
+		http.Error(w, "failed to update feed", http.StatusInternalServerError)
+		return
+	}
+
+	if result.RowsAffected() == 0 {
+		http.Error(w, "feed not found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+}
+
 func (s *Server) handleExportFeeds(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

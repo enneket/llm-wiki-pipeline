@@ -78,6 +78,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("GET /api/status", s.handleStatus)
 	mux.HandleFunc("GET /api/feeds", s.handleListFeeds)
 	mux.HandleFunc("POST /api/feeds", s.handleAddFeed)
+	mux.HandleFunc("PUT /api/feeds/{id}", s.handleUpdateFeed)
 	mux.HandleFunc("DELETE /api/feeds/{id}", s.handleDeleteFeed)
 	mux.HandleFunc("GET /api/feeds/export", s.handleExportFeeds)
 	mux.HandleFunc("POST /api/feeds/import", s.handleImportFeeds)
