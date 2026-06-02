@@ -84,7 +84,7 @@ async function loadFeeds() {
                     ${f.tags.length ? `<p>标签: ${f.tags.join(', ')}</p>` : ''}
                 </div>
                 <div class="feed-actions">
-                    <button class="edit-btn" onclick="editFeed(${f.id}, '${escapeHtml(f.name)}', '${escapeHtml(f.url)}', '${f.tags.join(',')}'">编辑</button>
+                    <button class="edit-btn" onclick="editFeed(${f.id}, '${escapeHtml(f.name)}', '${escapeHtml(f.url)}', '${f.tags.join(',')}')">编辑</button>
                     <button class="delete-btn" onclick="deleteFeed(${f.id})">删除</button>
                 </div>
             </div>
