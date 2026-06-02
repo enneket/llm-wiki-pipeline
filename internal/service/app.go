@@ -296,11 +296,21 @@ func (a *App) tagsForFeed(feedName string) []string {
 }
 
 func (a *App) saveDocRecord(ctx context.Context, url, contentHash, title, content, source, feedName string) {
+	// Find feed_id by name
+	var feedID *int64
+	if feedName != "" {
+		var id int64
+		err := a.db.Pool.QueryRow(ctx, `SELECT id FROM feeds WHERE name = $1`, feedName).Scan(&id)
+		if err == nil {
+			feedID = &id
+		}
+	}
+
 	_, err := a.db.Pool.Exec(ctx, `
-		INSERT INTO documents (url, title, content_hash, content, tags, source, file_path)
-		VALUES ($1, $2, $3, $4, $5, $6, '')
-		ON CONFLICT (url) DO UPDATE SET source = EXCLUDED.source, title = EXCLUDED.title
-	`, url, title, contentHash, content, []string{}, source)
+		INSERT INTO documents (url, title, content_hash, content, tags, source, file_path, feed_id)
+		VALUES ($1, $2, $3, $4, $5, $6, '', $7)
+		ON CONFLICT (url) DO UPDATE SET source = EXCLUDED.source, title = EXCLUDED.title, feed_id = EXCLUDED.feed_id
+	`, url, title, contentHash, content, []string{}, source, feedID)
 	if err != nil {
 		log.Printf("[db] save doc record: %v", err)
 	}
