@@ -180,14 +180,18 @@ async function loadWiki() {
         const pages = await res.json();
 
         const list = document.getElementById('wiki-list');
-        list.innerHTML = pages.map(p => `
-            <div class="wiki-item" onclick="loadWikiPage('${p.slug}')">
-                <h3>${escapeHtml(p.title)}</h3>
-                <div class="tags">
-                    ${p.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+        if (!pages || pages.length === 0) {
+            list.innerHTML = '<p>暂无 Wiki 页面</p>';
+        } else {
+            list.innerHTML = pages.map(p => `
+                <div class="wiki-item" onclick="loadWikiPage('${p.slug}')">
+                    <h3>${escapeHtml(p.title)}</h3>
+                    <div class="tags">
+                        ${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `).join('');
+        }
 
         document.getElementById('wiki-list').style.display = 'block';
         document.getElementById('wiki-content').style.display = 'none';
