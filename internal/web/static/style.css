@@ -536,6 +536,13 @@ button:hover {
     background: #2c3e50;
 }
 
+.page-ellipsis {
+    display: flex;
+    align-items: center;
+    padding: 0 5px;
+    color: #666;
+}
+
 .doc-content {
     line-height: 1.8;
 }

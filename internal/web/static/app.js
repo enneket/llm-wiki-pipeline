@@ -572,13 +572,31 @@ async function fetchDocuments() {
         const pagDiv = document.getElementById('doc-pagination');
         let pagHtml = '';
         if (data.page > 1) {
+            pagHtml += `<button onclick="goDocPage(1)">首页</button>`;
             pagHtml += `<button onclick="goDocPage(${data.page - 1})">上一页</button>`;
         }
-        for (let i = 1; i <= totalPages && i <= 10; i++) {
+        
+        // Show pages around current page
+        let startPage = Math.max(1, data.page - 5);
+        let endPage = Math.min(totalPages, data.page + 5);
+        
+        if (startPage > 1) {
+            pagHtml += `<button onclick="goDocPage(1)">1</button>`;
+            if (startPage > 2) pagHtml += `<span class="page-ellipsis">...</span>`;
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
             pagHtml += `<button onclick="goDocPage(${i})" ${i === data.page ? 'class="active"' : ''}>${i}</button>`;
         }
+        
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) pagHtml += `<span class="page-ellipsis">...</span>`;
+            pagHtml += `<button onclick="goDocPage(${totalPages})">${totalPages}</button>`;
+        }
+        
         if (data.page < totalPages) {
             pagHtml += `<button onclick="goDocPage(${data.page + 1})">下一页</button>`;
+            pagHtml += `<button onclick="goDocPage(${totalPages})">末页</button>`;
         }
         pagDiv.innerHTML = pagHtml;
 
