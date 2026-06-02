@@ -146,8 +146,9 @@ func (a *App) processOne(ctx context.Context, feedName, filePath string) {
 
 	// Save URL+hash to PG as raw record (before filter)
 	url := extractURL(string(content))
-	contentHash := step2.ComputeHash(extractTitle(string(content)), string(content))
-	a.saveDocRecord(ctx, url, contentHash, "raw", feedName)
+	title := extractTitle(string(content))
+	contentHash := step2.ComputeHash(title, string(content))
+	a.saveDocRecord(ctx, url, contentHash, title, string(content), "raw", feedName)
 
 	decision, err := a.filter.Decide(ctx, merged)
 	if err != nil {
@@ -294,12 +295,12 @@ func (a *App) tagsForFeed(feedName string) []string {
 	return nil
 }
 
-func (a *App) saveDocRecord(ctx context.Context, url, contentHash, source, feedName string) {
+func (a *App) saveDocRecord(ctx context.Context, url, contentHash, title, content, source, feedName string) {
 	_, err := a.db.Pool.Exec(ctx, `
 		INSERT INTO documents (url, title, content_hash, content, tags, source, file_path)
-		VALUES ($1, '', $2, '', $3, $4, '')
-		ON CONFLICT (url) DO UPDATE SET source = EXCLUDED.source
-	`, url, contentHash, []string{}, source)
+		VALUES ($1, $2, $3, $4, $5, $6, '')
+		ON CONFLICT (url) DO UPDATE SET source = EXCLUDED.source, title = EXCLUDED.title
+	`, url, title, contentHash, content, []string{}, source)
 	if err != nil {
 		log.Printf("[db] save doc record: %v", err)
 	}
