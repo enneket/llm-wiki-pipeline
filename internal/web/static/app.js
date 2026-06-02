@@ -2,6 +2,8 @@
 function formatTime(dateStr) {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
+    // Check for zero date (0001-01-01)
+    if (date.getFullYear() < 2000) return '-';
     return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
 }
 
@@ -552,7 +554,8 @@ async function fetchDocuments() {
         const items = data.items || [];
         list.innerHTML = items.map(d => {
             const statusMap = { pending: '⏳ 待处理', processing: '🔄 处理中', done: '✅ 已完成', failed: '❌ 失败' };
-            const displayTime = d.published || d.created_at;
+            const publishedTime = d.published && new Date(d.published).getFullYear() >= 2000 ? d.published : null;
+            const displayTime = publishedTime || d.created_at;
             return `
                 <div class="doc-item">
                     <h3><a href="#" onclick="loadDocPage(${d.id}); return false;">${escapeHtml(d.title || '无标题')}</a></h3>
