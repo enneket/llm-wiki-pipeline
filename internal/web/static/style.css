@@ -213,12 +213,18 @@ button:hover {
     padding: 15px;
     background: #f9f9f9;
     border-radius: 4px;
+    align-items: center;
 }
 
 .import-section,
-.export-section {
+.export-section,
+.fetch-section {
     display: flex;
     gap: 8px;
+}
+
+.fetch-section {
+    margin-left: auto;
 }
 
 .import-section button,
