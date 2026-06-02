@@ -92,7 +92,7 @@ func (f *Fetcher) parseRSS(body []byte) ([]Item, error) {
 	}
 	items := make([]Item, 0, len(rss.Channel.Items))
 	for _, i := range rss.Channel.Items {
-		content := i.Content.Encoded
+		content := i.EncodedContent
 		if content == "" {
 			content = i.Description
 		}
@@ -215,10 +215,8 @@ type RSSItem struct {
 	Title       string   `xml:"title"`
 	Link        string   `xml:"link"`
 	Description string   `xml:"description"`
-	Content     struct { // optional <content:encoded>
-		Encoded string `xml:"encoded"`
-	} `xml:"content"`
-	PubDate string `xml:"pubDate"`
+	EncodedContent string `xml:"http://purl.org/rss/1.0/modules/content/ encoded"`
+	PubDate     string   `xml:"pubDate"`
 }
 
 type AtomFeed struct {
