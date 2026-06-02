@@ -235,6 +235,14 @@ button:hover {
     background: #229954;
 }
 
+.fetch-btn {
+    background: #e67e22 !important;
+}
+
+.fetch-btn:hover {
+    background: #d35400 !important;
+}
+
 .export-section button {
     background: #8e44ad;
 }

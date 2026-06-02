@@ -80,6 +80,9 @@ func New(cfg *config.Config, db *database.DB) *App {
 
 	app.ingest = step3.NewIngest(llmClient, app.embedder, app.writer, app.dedup)
 	app.webServer = web.NewServer(db, llmClient, cfg)
+	app.webServer.SetFetchHandler(func() {
+		app.scheduler.RunOnce()
+	})
 
 	// Wire scheduler callbacks: fetch → filter → ingest (direct call)
 	scheduler.OnNewItem(func(feedName string, item *step1.Item, filePath string) {

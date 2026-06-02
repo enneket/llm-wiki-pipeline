@@ -161,6 +161,18 @@ func (s *Server) handleUpdateFeed(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 }
 
+func (s *Server) handleFetchFeeds(w http.ResponseWriter, r *http.Request) {
+	if s.onFetch == nil {
+		http.Error(w, "fetch handler not configured", http.StatusInternalServerError)
+		return
+	}
+
+	go s.onFetch()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "fetching"})
+}
+
 func (s *Server) handleExportFeeds(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

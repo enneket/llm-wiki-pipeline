@@ -19,11 +19,12 @@ import (
 var staticFiles embed.FS
 
 type Server struct {
-	db       *database.DB
-	llm      *llm.Client
-	port     string
-	cfg      *config.Config
-	apiToken string
+	db        *database.DB
+	llm       *llm.Client
+	port      string
+	cfg       *config.Config
+	apiToken  string
+	onFetch   func()
 }
 
 func NewServer(db *database.DB, llmClient *llm.Client, cfg *config.Config) *Server {
@@ -38,6 +39,11 @@ func NewServer(db *database.DB, llmClient *llm.Client, cfg *config.Config) *Serv
 		cfg:      cfg,
 		apiToken: cfg.Web.APIToken,
 	}
+}
+
+// SetFetchHandler sets the callback for manual feed fetch
+func (s *Server) SetFetchHandler(fn func()) {
+	s.onFetch = fn
 }
 
 // authMiddleware validates Bearer token if apiToken is configured
@@ -78,6 +84,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("GET /api/status", s.handleStatus)
 	mux.HandleFunc("GET /api/feeds", s.handleListFeeds)
 	mux.HandleFunc("POST /api/feeds", s.handleAddFeed)
+	mux.HandleFunc("POST /api/feeds/fetch", s.handleFetchFeeds)
 	mux.HandleFunc("PUT /api/feeds/{id}", s.handleUpdateFeed)
 	mux.HandleFunc("DELETE /api/feeds/{id}", s.handleDeleteFeed)
 	mux.HandleFunc("GET /api/feeds/export", s.handleExportFeeds)

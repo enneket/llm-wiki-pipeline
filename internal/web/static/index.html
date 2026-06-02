@@ -77,6 +77,7 @@
                     <div class="import-section">
                         <input type="file" id="import-file" accept=".opml,.xml,.txt" style="display:none">
                         <button onclick="document.getElementById('import-file').click()">导入 OPML/URL</button>
+                        <button onclick="fetchFeeds()" class="fetch-btn">立即拉取</button>
                     </div>
                     <div class="export-section">
                         <button onclick="exportFeeds('json')">导出 JSON</button>

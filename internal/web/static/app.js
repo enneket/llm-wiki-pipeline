@@ -290,6 +290,16 @@ function exportFeeds(format) {
     window.location.href = `/api/feeds/export?format=${format}`;
 }
 
+async function fetchFeeds() {
+    try {
+        const res = await fetch('/api/feeds/fetch', { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        alert('已开始拉取，请稍后查看结果');
+    } catch (err) {
+        alert('拉取失败: ' + err.message);
+    }
+}
+
 // Settings
 async function loadSettings() {
     try {
