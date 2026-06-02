@@ -101,9 +101,11 @@ func (s *Server) handleListDocuments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Sort
-	sortField := "d.created_at"
+	sortField := "d.published"
 	if s := q.Get("sort"); s == "title" {
 		sortField = "d.title"
+	} else if s == "created_at" {
+		sortField = "d.created_at"
 	}
 	order := "DESC"
 	if o := q.Get("order"); o == "asc" {
