@@ -1,18 +1,41 @@
 // Tab switching
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+function switchTab(tabName) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+    const tab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+    const content = document.getElementById(tabName);
+    if (tab && content) {
         tab.classList.add('active');
-        document.getElementById(tab.dataset.tab).classList.add('active');
+        content.classList.add('active');
 
         // Load data when switching tabs
-        if (tab.dataset.tab === 'status') loadStatus();
-        if (tab.dataset.tab === 'feeds') loadFeeds();
-        if (tab.dataset.tab === 'wiki') loadWiki();
-        if (tab.dataset.tab === 'settings') loadSettings();
-        if (tab.dataset.tab === 'documents') loadDocuments();
+        if (tabName === 'status') loadStatus();
+        if (tabName === 'feeds') loadFeeds();
+        if (tabName === 'wiki') loadWiki();
+        if (tabName === 'settings') loadSettings();
+        if (tabName === 'documents') loadDocuments();
+    }
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        const tabName = tab.dataset.tab;
+        window.location.hash = tabName;
+        switchTab(tabName);
     });
+});
+
+// Restore tab from URL hash on page load
+window.addEventListener('hashchange', () => {
+    const tabName = window.location.hash.slice(1) || 'query';
+    switchTab(tabName);
+});
+
+// Initial tab load
+document.addEventListener('DOMContentLoaded', () => {
+    const tabName = window.location.hash.slice(1) || 'query';
+    switchTab(tabName);
 });
 
 // Query
