@@ -547,14 +547,12 @@ async function fetchDocuments() {
             const statusMap = { pending: '⏳ 待处理', processing: '🔄 处理中', done: '✅ 已完成', failed: '❌ 失败' };
             return `
                 <div class="doc-item">
-                    <h3><a href="#" onclick="loadDocPage(${d.id}); return false;">${escapeHtml(d.title)}</a></h3>
+                    <h3><a href="#" onclick="loadDocPage(${d.id}); return false;">${escapeHtml(d.title || '无标题')}</a></h3>
                     <div class="doc-item-meta">
-                        <span>来源: ${escapeHtml(d.feed_name)}</span>
-                        ${d.tags.length ? `<span>标签: ${d.tags.map(escapeHtml).join(', ')}</span>` : ''}
+                        <span>来源: ${escapeHtml(d.feed_name || '-')}</span>
                         <span>${statusMap[d.status] || d.status}</span>
                         <span>${d.created_at.split('T')[0]}</span>
                     </div>
-                    <p class="doc-summary">${escapeHtml(d.summary)}</p>
                 </div>
             `;
         }).join('');
