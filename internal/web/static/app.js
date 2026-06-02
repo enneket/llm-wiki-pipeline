@@ -82,10 +82,9 @@ async function loadFeeds() {
                     <h3>${escapeHtml(f.name)}</h3>
                     <p>${escapeHtml(f.url)}</p>
                     ${f.tags.length ? `<p>标签: ${f.tags.join(', ')}</p>` : ''}
-                    <p>间隔: ${escapeHtml(f.interval)}</p>
                 </div>
                 <div class="feed-actions">
-                    <button class="edit-btn" onclick="editFeed(${f.id}, '${escapeHtml(f.name)}', '${escapeHtml(f.url)}', '${f.tags.join(',')}', '${escapeHtml(f.interval)}')">编辑</button>
+                    <button class="edit-btn" onclick="editFeed(${f.id}, '${escapeHtml(f.name)}', '${escapeHtml(f.url)}', '${f.tags.join(',')}'')">编辑</button>
                     <button class="delete-btn" onclick="deleteFeed(${f.id})">删除</button>
                 </div>
             </div>
@@ -95,13 +94,12 @@ async function loadFeeds() {
     }
 }
 
-function editFeed(id, name, url, tags, interval) {
+function editFeed(id, name, url, tags) {
     document.getElementById('feed-edit-id').value = id;
     document.getElementById('feed-edit-name').value = name;
     document.getElementById('feed-edit-url').value = url;
     document.getElementById('feed-edit-tags').value = tags;
-    document.getElementById('feed-edit-interval').value = interval;
-    document.getElementById('feed-edit-dialog').style.display = 'block';
+    document.getElementById('feed-edit-dialog').style.display = 'flex';
 }
 
 function cancelEditFeed() {
@@ -113,7 +111,6 @@ async function saveEditFeed() {
     const name = document.getElementById('feed-edit-name').value.trim();
     const url = document.getElementById('feed-edit-url').value.trim();
     const tags = document.getElementById('feed-edit-tags').value.split(',').map(t => t.trim()).filter(Boolean);
-    const interval = document.getElementById('feed-edit-interval').value.trim();
 
     if (!name || !url) {
         alert('请输入名称和 URL');
@@ -124,7 +121,7 @@ async function saveEditFeed() {
         const res = await fetch(`/api/feeds/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, url, tags, interval })
+            body: JSON.stringify({ name, url, tags })
         });
 
         if (!res.ok) throw new Error(await res.text());
