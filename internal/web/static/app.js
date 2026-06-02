@@ -1,3 +1,10 @@
+// Time formatting
+function formatTime(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+}
+
 // Tab switching
 function switchTab(tabName) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -551,7 +558,7 @@ async function fetchDocuments() {
                     <div class="doc-item-meta">
                         <span>来源: ${escapeHtml(d.feed_name || '-')}</span>
                         <span>${statusMap[d.status] || d.status}</span>
-                        <span>${d.created_at.split('T')[0]}</span>
+                        <span>${formatTime(d.created_at)}</span>
                     </div>
                 </div>
             `;
@@ -591,11 +598,11 @@ async function loadDocPage(id) {
         const doc = await res.json();
 
         document.getElementById('doc-title').textContent = doc.title;
-        document.getElementById('doc-meta-feed').textContent = '来源: ' + doc.feed_name;
+        document.getElementById('doc-meta-feed').textContent = '来源: ' + (doc.feed_name || '-');
         const statusMap = { pending: '⏳ 待处理', processing: '🔄 处理中', done: '✅ 已完成', failed: '❌ 失败' };
         document.getElementById('doc-meta-status').textContent = statusMap[doc.status] || doc.status;
         document.getElementById('doc-meta-source').textContent = '类型: ' + doc.source;
-        document.getElementById('doc-meta-date').textContent = doc.created_at.split('T')[0];
+        document.getElementById('doc-meta-date').textContent = formatTime(doc.created_at);
         document.getElementById('doc-body').innerHTML = renderMarkdown(doc.content);
 
         document.getElementById('doc-list').style.display = 'none';
