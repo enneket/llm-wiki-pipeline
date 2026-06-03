@@ -20,11 +20,6 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mask API keys in response
-	for category, data := range all {
-		all[category] = maskAPIKeys(data)
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(all)
 }
@@ -40,11 +35,8 @@ func (s *Server) handleGetSettingCategory(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Mask API keys
-	masked := maskAPIKeys(data)
-
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(masked)
+	w.Write(data)
 }
 
 func (s *Server) handleUpdateSettingCategory(w http.ResponseWriter, r *http.Request) {
@@ -142,31 +134,4 @@ func validateSettings(category string, data json.RawMessage) error {
 		return fmt.Errorf("unknown category: %s", category)
 	}
 	return nil
-}
-
-func maskAPIKeys(data json.RawMessage) json.RawMessage {
-	var m map[string]interface{}
-	if err := json.Unmarshal(data, &m); err != nil {
-		return data
-	}
-
-	maskAPIKeysInMap(m)
-
-	result, err := json.Marshal(m)
-	if err != nil {
-		return data
-	}
-	return result
-}
-
-func maskAPIKeysInMap(m map[string]interface{}) {
-	for k, v := range m {
-		if k == "api_key" || k == "embedding_api_key" {
-			if str, ok := v.(string); ok && str != "" {
-				m[k] = "***"
-			}
-		} else if sub, ok := v.(map[string]interface{}); ok {
-			maskAPIKeysInMap(sub)
-		}
-	}
 }

@@ -387,7 +387,7 @@ async function loadSettings() {
         if (settings.llm) {
             document.getElementById('llm-model').value = settings.llm.model || '';
             document.getElementById('llm-base-url').value = settings.llm.base_url || '';
-            // Don't set api_key value for security
+            document.getElementById('llm-api-key').value = settings.llm.api_key || '';
         }
 
         // Filter
@@ -428,11 +428,9 @@ async function saveSettings(category) {
         case 'llm':
             data = {
                 model: document.getElementById('llm-model').value,
+                api_key: document.getElementById('llm-api-key').value,
                 base_url: document.getElementById('llm-base-url').value
             };
-            // Only include api_key if user entered something
-            const apiKey = document.getElementById('llm-api-key').value;
-            if (apiKey) data.api_key = apiKey;
             break;
         case 'filter':
             data = {
