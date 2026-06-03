@@ -439,6 +439,8 @@ button:hover {
     padding: 8px 12px;
     font-size: 12px;
     background: #95a5a6;
+    white-space: nowrap;
+    min-width: auto;
 }
 
 .api-key-field .toggle-visibility:hover {
