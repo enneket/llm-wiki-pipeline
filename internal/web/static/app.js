@@ -428,11 +428,11 @@ async function saveSettings(category) {
         case 'llm':
             data = {
                 model: document.getElementById('llm-model').value,
-                api_key: document.getElementById('llm-api-key').value,
                 base_url: document.getElementById('llm-base-url').value
             };
-            // Don't send empty api_key (preserve existing)
-            if (!data.api_key) delete data.api_key;
+            // Only include api_key if user entered something
+            const apiKey = document.getElementById('llm-api-key').value;
+            if (apiKey) data.api_key = apiKey;
             break;
         case 'filter':
             data = {
