@@ -658,3 +658,72 @@ document.getElementById('doc-filter-tag').addEventListener('keydown', (e) => {
         fetchDocuments();
     }
 });
+
+// Document processing
+let processPollInterval = null;
+
+async function processDocuments() {
+    try {
+        const res = await fetch('/api/documents/process', { method: 'POST' });
+        if (!res.ok) {
+            const err = await res.text();
+            if (err.includes('already in progress')) {
+                alert('处理正在进行中');
+            } else {
+                throw new Error(err);
+            }
+            return;
+        }
+        startProcessProgress();
+    } catch (err) {
+        alert('处理失败: ' + err.message);
+    }
+}
+
+function startProcessProgress() {
+    const progressDiv = document.getElementById('process-progress');
+    const progressFill = document.getElementById('process-progress-fill');
+    const progressText = document.getElementById('process-progress-text');
+    const processBtn = document.getElementById('process-btn');
+
+    progressDiv.style.display = 'flex';
+    progressFill.style.width = '0%';
+    progressText.textContent = '准备中...';
+    processBtn.disabled = true;
+    processBtn.textContent = '处理中...';
+
+    processPollInterval = setInterval(async () => {
+        try {
+            const res = await fetch('/api/documents/process/status');
+            const data = await res.json();
+
+            if (!data.running) {
+                stopProcessProgress();
+                fetchDocuments();
+                return;
+            }
+
+            const percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
+            progressFill.style.width = percent + '%';
+            progressText.textContent = data.current 
+                ? `${data.completed}/${data.total} - ${data.current}` 
+                : `${data.completed}/${data.total}`;
+        } catch (err) {
+            console.error('Failed to fetch process status:', err);
+        }
+    }, 300);
+}
+
+function stopProcessProgress() {
+    if (processPollInterval) {
+        clearInterval(processPollInterval);
+        processPollInterval = null;
+    }
+
+    const progressDiv = document.getElementById('process-progress');
+    const processBtn = document.getElementById('process-btn');
+
+    progressDiv.style.display = 'none';
+    processBtn.disabled = false;
+    processBtn.textContent = 'LLM 处理';
+}

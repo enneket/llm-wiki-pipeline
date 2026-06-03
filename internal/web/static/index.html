@@ -130,6 +130,15 @@
                 <div class="doc-header">
                     <span id="doc-total">共 0 篇文档</span>
                     <span id="doc-page-info">第 0/0 页</span>
+                    <div class="doc-actions">
+                        <button onclick="processDocuments()" id="process-btn" class="process-btn">LLM 处理</button>
+                    </div>
+                </div>
+                <div id="process-progress" class="fetch-progress" style="display:none">
+                    <div class="progress-bar">
+                        <div id="process-progress-fill" class="progress-fill"></div>
+                    </div>
+                    <span id="process-progress-text" class="progress-text">准备中...</span>
                 </div>
                 <div id="doc-list" class="doc-list"></div>
                 <div id="doc-pagination" class="doc-pagination"></div>

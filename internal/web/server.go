@@ -25,10 +25,19 @@ type Server struct {
 	cfg        *config.Config
 	apiToken   string
 	onFetch    func()
+	onProcess  func() // LLM processing
 	fetchState FetchState
+	processState ProcessState
 }
 
 type FetchState struct {
+	Running    bool   `json:"running"`
+	Total      int    `json:"total"`
+	Completed  int    `json:"completed"`
+	Current    string `json:"current"`
+}
+
+type ProcessState struct {
 	Running    bool   `json:"running"`
 	Total      int    `json:"total"`
 	Completed  int    `json:"completed"`
@@ -52,6 +61,11 @@ func NewServer(db *database.DB, llmClient *llm.Client, cfg *config.Config) *Serv
 // SetFetchHandler sets the callback for manual feed fetch
 func (s *Server) SetFetchHandler(fn func()) {
 	s.onFetch = fn
+}
+
+// SetProcessHandler sets the callback for manual LLM processing
+func (s *Server) SetProcessHandler(fn func()) {
+	s.onProcess = fn
 }
 
 // authMiddleware validates Bearer token if apiToken is configured
@@ -94,6 +108,8 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("POST /api/feeds", s.handleAddFeed)
 	mux.HandleFunc("POST /api/feeds/fetch", s.handleFetchFeeds)
 	mux.HandleFunc("GET /api/feeds/fetch/status", s.handleFetchStatus)
+	mux.HandleFunc("POST /api/documents/process", s.handleProcessDocuments)
+	mux.HandleFunc("GET /api/documents/process/status", s.handleProcessStatus)
 	mux.HandleFunc("PUT /api/feeds/{id}", s.handleUpdateFeed)
 	mux.HandleFunc("DELETE /api/feeds/{id}", s.handleDeleteFeed)
 	mux.HandleFunc("GET /api/feeds/export", s.handleExportFeeds)

@@ -272,3 +272,41 @@ func (s *Server) handleDocumentStats(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
+
+func (s *Server) handleProcessDocuments(w http.ResponseWriter, r *http.Request) {
+	if s.onProcess == nil {
+		http.Error(w, "process handler not configured", http.StatusInternalServerError)
+		return
+	}
+
+	if s.processState.Running {
+		http.Error(w, "processing already in progress", http.StatusConflict)
+		return
+	}
+
+	s.processState.Running = true
+	s.processState.Total = 0
+	s.processState.Completed = 0
+	s.processState.Current = "准备中..."
+
+	go func() {
+		s.onProcess()
+		s.processState.Running = false
+		s.processState.Current = ""
+	}()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "processing"})
+}
+
+func (s *Server) handleProcessStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(s.processState)
+}
+
+// UpdateProcessProgress updates the process progress
+func (s *Server) UpdateProcessProgress(total, completed int, current string) {
+	s.processState.Total = total
+	s.processState.Completed = completed
+	s.processState.Current = current
+}

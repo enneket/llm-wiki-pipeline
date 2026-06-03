@@ -482,6 +482,21 @@ button:hover {
     font-size: 14px;
 }
 
+.doc-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.process-btn {
+    background: #9b59b6 !important;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+.process-btn:hover {
+    background: #8e44ad !important;
+}
+
 .doc-list {
     display: flex;
     flex-direction: column;
