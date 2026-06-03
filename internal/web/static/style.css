@@ -436,11 +436,12 @@ button:hover {
 }
 
 .api-key-field .toggle-visibility {
-    padding: 8px 12px;
+    padding: 8px 8px !important;
     font-size: 12px;
     background: #95a5a6;
     white-space: nowrap;
     min-width: auto;
+    width: auto;
 }
 
 .api-key-field .toggle-visibility:hover {
