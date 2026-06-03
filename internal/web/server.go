@@ -19,14 +19,15 @@ import (
 var staticFiles embed.FS
 
 type Server struct {
-	db         *database.DB
-	llm        *llm.Client
-	port       string
-	cfg        *config.Config
-	apiToken   string
-	onFetch    func()
-	onProcess  func() // LLM processing
-	fetchState FetchState
+	db           *database.DB
+	llm          *llm.Client
+	port         string
+	cfg          *config.Config
+	apiToken     string
+	onFetch      func()
+	onProcess    func()
+	onLLMUpdate  func(apiKey, baseURL, model string) // Update LLM client
+	fetchState   FetchState
 	processState ProcessState
 }
 
@@ -66,6 +67,11 @@ func (s *Server) SetFetchHandler(fn func()) {
 // SetProcessHandler sets the callback for manual LLM processing
 func (s *Server) SetProcessHandler(fn func()) {
 	s.onProcess = fn
+}
+
+// SetLLMUpdateHandler sets the callback for LLM client update
+func (s *Server) SetLLMUpdateHandler(fn func(apiKey, baseURL, model string)) {
+	s.onLLMUpdate = fn
 }
 
 // authMiddleware validates Bearer token if apiToken is configured

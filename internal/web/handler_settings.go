@@ -79,6 +79,12 @@ func (s *Server) reloadConfig(ctx context.Context) error {
 		return fmt.Errorf("reload config from db: %w", err)
 	}
 	s.cfg = cfg
+
+	// Update LLM client if config changed
+	if s.onLLMUpdate != nil {
+		s.onLLMUpdate(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model)
+	}
+
 	return nil
 }
 

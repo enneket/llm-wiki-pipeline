@@ -86,6 +86,13 @@ func New(cfg *config.Config, db *database.DB) *App {
 	app.webServer.SetProcessHandler(func() {
 		app.processPendingDocuments()
 	})
+	app.webServer.SetLLMUpdateHandler(func(apiKey, baseURL, model string) {
+		if apiKey != "" && baseURL != "" && model != "" {
+			app.llmClient = llm.NewClient(apiKey, baseURL, model)
+			app.ingest = step3.NewIngest(app.llmClient, app.embedder, app.writer, app.dedup)
+			log.Printf("[app] LLM client updated: %s", baseURL)
+		}
+	})
 
 	// Wire scheduler callbacks: fetch → filter → ingest (direct call)
 	scheduler.OnNewItem(func(feedName string, item *step1.Item, filePath string) {
