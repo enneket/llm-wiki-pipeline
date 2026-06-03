@@ -218,6 +218,17 @@
                             <label>向量模型</label>
                             <input type="text" id="dedup-vector-model" placeholder="text-embedding-3-small">
                         </div>
+                        <div class="form-group">
+                            <label>向量 Base URL (可选)</label>
+                            <input type="text" id="dedup-vector-url" placeholder="留空则使用 LLM Base URL">
+                        </div>
+                        <div class="form-group">
+                            <label>向量 API Key (可选)</label>
+                            <div class="api-key-field">
+                                <input type="password" id="dedup-vector-key" placeholder="留空则使用 LLM API Key">
+                                <button class="toggle-visibility" onclick="toggleApiKey('dedup-vector-key')">显示</button>
+                            </div>
+                        </div>
                         <button onclick="saveSettings('dedup')">保存去重配置</button>
                     </div>
 

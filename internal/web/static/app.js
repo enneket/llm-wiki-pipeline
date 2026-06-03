@@ -407,6 +407,8 @@ async function loadSettings() {
                 document.getElementById('dedup-vector-enabled').checked = settings.dedup.vector.enabled || false;
                 document.getElementById('dedup-vector-threshold').value = settings.dedup.vector.threshold || 0.85;
                 document.getElementById('dedup-vector-model').value = settings.dedup.vector.model || '';
+                document.getElementById('dedup-vector-url').value = settings.dedup.vector.embedding_url || '';
+                // Don't set api_key value for security
             }
         }
 
@@ -448,9 +450,13 @@ async function saveSettings(category) {
                 vector: {
                     enabled: document.getElementById('dedup-vector-enabled').checked,
                     threshold: parseFloat(document.getElementById('dedup-vector-threshold').value) || 0.85,
-                    model: document.getElementById('dedup-vector-model').value
+                    model: document.getElementById('dedup-vector-model').value,
+                    embedding_url: document.getElementById('dedup-vector-url').value,
+                    embedding_api_key: document.getElementById('dedup-vector-key').value
                 }
             };
+            // Don't send empty api_key (preserve existing)
+            if (!data.vector.embedding_api_key) delete data.vector.embedding_api_key;
             break;
         case 'general':
             data = {
