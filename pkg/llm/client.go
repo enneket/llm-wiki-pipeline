@@ -61,8 +61,12 @@ func NewClientWithEmbed(apiKey, baseURL, model, embedURL, embedKey string) *Clie
 
 // detectProvider determines the API provider from baseURL
 func detectProvider(baseURL string) string {
-	if strings.Contains(strings.ToLower(baseURL), "volc") {
+	lower := strings.ToLower(baseURL)
+	if strings.Contains(lower, "volc") {
 		return "volcengine"
+	}
+	if strings.Contains(lower, "anthropic") {
+		return "anthropic"
 	}
 	return "openai"
 }
@@ -73,6 +77,8 @@ func cleanBaseURL(baseURL, provider string) string {
 	switch provider {
 	case "volcengine":
 		return strings.TrimSuffix(baseURL, "/api/v3/responses")
+	case "anthropic":
+		return strings.TrimSuffix(baseURL, "/v1/messages")
 	default:
 		return strings.TrimSuffix(baseURL, "/v1")
 	}
@@ -142,6 +148,9 @@ type volcResponse struct {
 func (c *Client) Complete(ctx context.Context, msgs []ChatMessage) (string, error) {
 	if c.provider == "volcengine" {
 		return c.completeVolcengine(ctx, msgs)
+	}
+	if c.provider == "anthropic" {
+		return c.completeAnthropic(ctx, msgs)
 	}
 	return c.completeOpenAI(ctx, msgs)
 }
@@ -233,6 +242,75 @@ func (c *Client) completeVolcengine(ctx context.Context, msgs []ChatMessage) (st
 		}
 	}
 	return "", fmt.Errorf("no text in volcengine response")
+}
+
+// --- Anthropic request/response types ---
+
+type anthropicRequest struct {
+	Model     string            `json:"model"`
+	MaxTokens int               `json:"max_tokens"`
+	Messages  []anthropicMessage `json:"messages"`
+}
+
+type anthropicMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type anthropicResponse struct {
+	Content []anthropicContent `json:"content"`
+}
+
+type anthropicContent struct {
+	Type string `json:"type"`
+	Text string `json:"text,omitempty"`
+}
+
+func (c *Client) completeAnthropic(ctx context.Context, msgs []ChatMessage) (string, error) {
+	// Convert messages to Anthropic format
+	messages := make([]anthropicMessage, len(msgs))
+	for i, m := range msgs {
+		messages[i] = anthropicMessage{Role: m.Role, Content: m.Content}
+	}
+	reqBody := anthropicRequest{
+		Model:     c.model,
+		MaxTokens: 4096,
+		Messages:  messages,
+	}
+	data, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("marshal: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/v1/messages", bytes.NewReader(data))
+	if err != nil {
+		return "", fmt.Errorf("new request: %w", err)
+	}
+	req.Header.Set("x-api-key", c.apiKey)
+	req.Header.Set("anthropic-version", "2023-06-01")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result anthropicResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("decode: %w", err)
+	}
+	for _, block := range result.Content {
+		if block.Type == "text" {
+			return block.Text, nil
+		}
+	}
+	return "", fmt.Errorf("no text in anthropic response")
 }
 
 // ChatMessage represents a single chat message (exported for use in completeOpenAI)
