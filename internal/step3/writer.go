@@ -1,17 +1,25 @@
 package step3
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
+
+	"llm-wiki/internal/wiki"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // WikiWriter handles wiki file writes with a serialised queue
 type WikiWriter struct {
 	queue chan wikiJob
 	wg    sync.WaitGroup
+	pool  *pgxpool.Pool
 }
 
 type wikiJob struct {
@@ -32,9 +40,10 @@ type WikiPage struct {
 }
 
 // NewWikiWriter creates a serialised wiki file writer
-func NewWikiWriter() *WikiWriter {
+func NewWikiWriter(pool *pgxpool.Pool) *WikiWriter {
 	w := &WikiWriter{
 		queue: make(chan wikiJob, 100),
+		pool:  pool,
 	}
 	w.wg.Add(1)
 	go w.process()
@@ -67,6 +76,8 @@ func (w *WikiWriter) process() {
 			w.updateIndex()
 		case "update_log":
 			w.updateLog(job.page)
+		case "update_categories":
+			w.updateCategories()
 		}
 	}
 }
@@ -95,6 +106,26 @@ func (w *WikiWriter) writePage(page *WikiPage) error {
 		return fmt.Errorf("write file: %w", err)
 	}
 	page.FilePath = filename
+
+	// Store in database
+	if w.pool != nil {
+		ctx := context.Background()
+		_, err := w.pool.Exec(ctx, `
+			INSERT INTO wiki_pages (title, slug, page_type, tags, content, sources, created_at, last_modified)
+			VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+			ON CONFLICT (slug) DO UPDATE SET
+				title = EXCLUDED.title,
+				page_type = EXCLUDED.page_type,
+				tags = EXCLUDED.tags,
+				content = EXCLUDED.content,
+				sources = EXCLUDED.sources,
+				last_modified = NOW()
+		`, page.Title, page.Slug, page.Type, page.Tags, content, page.Sources)
+		if err != nil {
+			log.Printf("[writer] failed to store wiki page in DB: %v", err)
+		}
+	}
+
 	return nil
 }
 
@@ -141,6 +172,32 @@ func (w *WikiWriter) updateLog(page *WikiPage) {
 	defer f.Close()
 	if _, err := f.WriteString(logLine); err != nil {
 		fmt.Printf("[writer] failed to write log: %v\n", err)
+	}
+}
+
+func (w *WikiWriter) updateCategories() {
+	categories := wiki.ScanWikiPages()
+
+	catDir := filepath.Join("data", "wiki", "categories")
+	if err := os.MkdirAll(catDir, 0755); err != nil {
+		fmt.Printf("[writer] failed to create categories dir: %v\n", err)
+		return
+	}
+
+	oldFiles, _ := os.ReadDir(catDir)
+	for _, f := range oldFiles {
+		if f.IsDir() || !strings.HasSuffix(f.Name(), ".md") {
+			continue
+		}
+		os.Remove(filepath.Join(catDir, f.Name()))
+	}
+
+	for _, cat := range categories {
+		content := wiki.GenerateCategoryPage(cat)
+		filename := filepath.Join(catDir, slugify(cat.Name)+".md")
+		if err := os.WriteFile(filename, []byte(content), 0644); err != nil {
+			fmt.Printf("[writer] failed to write category %s: %v\n", cat.Name, err)
+		}
 	}
 }
 
