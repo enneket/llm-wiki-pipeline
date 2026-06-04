@@ -71,7 +71,9 @@ func (w *WikiWriter) process() {
 	for job := range w.queue {
 		switch job.jobType {
 		case "write":
-			w.writePage(job.page)
+			if err := w.writePage(job.page); err != nil {
+				log.Printf("[writer] write page: %v", err)
+			}
 		case "update_index":
 			w.updateIndex()
 		case "update_log":
@@ -155,7 +157,7 @@ func (w *WikiWriter) updateIndex() {
 
 	idxPath := filepath.Join("data", "wiki", "index.md")
 	if err := os.WriteFile(idxPath, []byte(index), 0644); err != nil {
-		fmt.Printf("[writer] failed to update index: %v\n", err)
+		log.Printf("[writer] failed to update index: %v", err)
 	}
 }
 
@@ -166,12 +168,12 @@ func (w *WikiWriter) updateLog(page *WikiPage) {
 	// Append to log
 	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Printf("[writer] failed to open log: %v\n", err)
+		log.Printf("[writer] failed to open log: %v", err)
 		return
 	}
 	defer f.Close()
 	if _, err := f.WriteString(logLine); err != nil {
-		fmt.Printf("[writer] failed to write log: %v\n", err)
+		log.Printf("[writer] failed to write log: %v", err)
 	}
 }
 
@@ -180,7 +182,7 @@ func (w *WikiWriter) updateCategories() {
 
 	catDir := filepath.Join("data", "wiki", "categories")
 	if err := os.MkdirAll(catDir, 0755); err != nil {
-		fmt.Printf("[writer] failed to create categories dir: %v\n", err)
+		log.Printf("[writer] failed to create categories dir: %v", err)
 		return
 	}
 
@@ -189,14 +191,16 @@ func (w *WikiWriter) updateCategories() {
 		if f.IsDir() || !strings.HasSuffix(f.Name(), ".md") {
 			continue
 		}
-		os.Remove(filepath.Join(catDir, f.Name()))
+		if err := os.Remove(filepath.Join(catDir, f.Name())); err != nil {
+			log.Printf("[writer] failed to remove old category file %s: %v", f.Name(), err)
+		}
 	}
 
 	for _, cat := range categories {
 		content := wiki.GenerateCategoryPage(cat)
 		filename := filepath.Join(catDir, slugify(cat.Name)+".md")
 		if err := os.WriteFile(filename, []byte(content), 0644); err != nil {
-			fmt.Printf("[writer] failed to write category %s: %v\n", cat.Name, err)
+			log.Printf("[writer] failed to write category %s: %v", cat.Name, err)
 		}
 	}
 }
