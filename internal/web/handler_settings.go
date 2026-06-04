@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"llm-wiki/internal/config"
+	"llm-wiki/pkg/llm"
 )
 
 func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
@@ -140,4 +141,116 @@ func validateSettings(category string, data json.RawMessage) error {
 		return fmt.Errorf("unknown category: %s", category)
 	}
 	return nil
+}
+
+func (s *Server) handleTestLLM(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get current LLM config
+	store := config.NewStore(s.db.Pool)
+	data, err := store.GetCategory(ctx, "llm")
+	if err != nil {
+		http.Error(w, "failed to load LLM config", http.StatusInternalServerError)
+		return
+	}
+
+	var llmCfg struct {
+		Model   string `json:"model"`
+		APIKey  string `json:"api_key"`
+		BaseURL string `json:"base_url"`
+	}
+	if err := json.Unmarshal(data, &llmCfg); err != nil {
+		http.Error(w, "invalid LLM config", http.StatusBadRequest)
+		return
+	}
+
+	if llmCfg.APIKey == "" || llmCfg.BaseURL == "" || llmCfg.Model == "" {
+		http.Error(w, "LLM config incomplete", http.StatusBadRequest)
+		return
+	}
+
+	// Create client and test
+	client := llm.NewClient(llmCfg.APIKey, llmCfg.BaseURL, llmCfg.Model)
+	resp, err := client.Complete(ctx, []llm.ChatMessage{
+		{Role: "user", Content: "Say 'Hello' in one word."},
+	})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("LLM test failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "response": resp})
+}
+
+func (s *Server) handleTestEmbedding(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get current config
+	store := config.NewStore(s.db.Pool)
+	llmData, err := store.GetCategory(ctx, "llm")
+	if err != nil {
+		http.Error(w, "failed to load LLM config", http.StatusInternalServerError)
+		return
+	}
+	dedupData, err := store.GetCategory(ctx, "dedup")
+	if err != nil {
+		http.Error(w, "failed to load dedup config", http.StatusInternalServerError)
+		return
+	}
+
+	var llmCfg struct {
+		Model   string `json:"model"`
+		APIKey  string `json:"api_key"`
+		BaseURL string `json:"base_url"`
+	}
+	if err := json.Unmarshal(llmData, &llmCfg); err != nil {
+		http.Error(w, "invalid LLM config", http.StatusBadRequest)
+		return
+	}
+
+	var dedupCfg struct {
+		Vector struct {
+			Model        string `json:"model"`
+			EmbeddingURL string `json:"embedding_url"`
+			EmbeddingKey string `json:"embedding_api_key"`
+		} `json:"vector"`
+	}
+	if err := json.Unmarshal(dedupData, &dedupCfg); err != nil {
+		http.Error(w, "invalid dedup config", http.StatusBadRequest)
+		return
+	}
+
+	// Use embedding config or fallback to LLM config
+	embedURL := dedupCfg.Vector.EmbeddingURL
+	embedKey := dedupCfg.Vector.EmbeddingKey
+	embedModel := dedupCfg.Vector.Model
+	if embedURL == "" {
+		embedURL = llmCfg.BaseURL
+	}
+	if embedKey == "" {
+		embedKey = llmCfg.APIKey
+	}
+	if embedModel == "" {
+		embedModel = llmCfg.Model
+	}
+
+	if embedKey == "" || embedURL == "" {
+		http.Error(w, "embedding config incomplete", http.StatusBadRequest)
+		return
+	}
+
+	// Create client and test
+	client := llm.NewClientWithEmbed(llmCfg.APIKey, llmCfg.BaseURL, llmCfg.Model, embedURL, embedKey)
+	embeddings, err := client.Embed(ctx, []string{"Hello world"})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Embedding test failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":    "ok",
+		"dimension": len(embeddings[0]),
+	})
 }

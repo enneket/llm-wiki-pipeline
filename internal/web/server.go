@@ -128,6 +128,8 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("GET /api/settings", s.handleGetSettings)
 	mux.HandleFunc("GET /api/settings/{category}", s.handleGetSettingCategory)
 	mux.HandleFunc("PUT /api/settings/{category}", s.handleUpdateSettingCategory)
+	mux.HandleFunc("POST /api/settings/test-llm", s.handleTestLLM)
+	mux.HandleFunc("POST /api/settings/test-embedding", s.handleTestEmbedding)
 
 	// Static files
 	staticFS, err := fs.Sub(staticFiles, "static")

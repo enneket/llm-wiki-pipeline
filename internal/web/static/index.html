@@ -176,7 +176,11 @@
                             <label>Base URL</label>
                             <input type="text" id="llm-base-url" placeholder="https://api.openai.com/v1">
                         </div>
-                        <button onclick="saveSettings('llm')">保存 LLM 配置</button>
+                        <div class="settings-actions">
+                            <button onclick="saveSettings('llm')">保存 LLM 配置</button>
+                            <button onclick="testLLM()" class="test-btn">测试 LLM</button>
+                        </div>
+                        <div id="llm-test-result" class="test-result" style="display:none"></div>
                     </div>
 
                     <!-- Filter Settings -->
@@ -238,7 +242,11 @@
                                 <button class="toggle-visibility" onclick="toggleApiKey('dedup-vector-key')">显示</button>
                             </div>
                         </div>
-                        <button onclick="saveSettings('dedup')">保存去重配置</button>
+                        <div class="settings-actions">
+                            <button onclick="saveSettings('dedup')">保存去重配置</button>
+                            <button onclick="testEmbedding()" class="test-btn">测试 Embedding</button>
+                        </div>
+                        <div id="embedding-test-result" class="test-result" style="display:none"></div>
                     </div>
 
                     <!-- General Settings -->

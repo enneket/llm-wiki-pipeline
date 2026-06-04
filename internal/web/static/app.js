@@ -493,6 +493,42 @@ function toggleApiKey(inputId) {
     }
 }
 
+async function testLLM() {
+    const resultDiv = document.getElementById('llm-test-result');
+    resultDiv.style.display = 'block';
+    resultDiv.className = 'test-result';
+    resultDiv.textContent = '测试中...';
+
+    try {
+        const res = await fetch('/api/settings/test-llm', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Test failed');
+        resultDiv.className = 'test-result success';
+        resultDiv.textContent = `测试成功！响应: ${data.response}`;
+    } catch (err) {
+        resultDiv.className = 'test-result error';
+        resultDiv.textContent = `测试失败: ${err.message}`;
+    }
+}
+
+async function testEmbedding() {
+    const resultDiv = document.getElementById('embedding-test-result');
+    resultDiv.style.display = 'block';
+    resultDiv.className = 'test-result';
+    resultDiv.textContent = '测试中...';
+
+    try {
+        const res = await fetch('/api/settings/test-embedding', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Test failed');
+        resultDiv.className = 'test-result success';
+        resultDiv.textContent = `测试成功！向量维度: ${data.dimension}`;
+    } catch (err) {
+        resultDiv.className = 'test-result error';
+        resultDiv.textContent = `测试失败: ${err.message}`;
+    }
+}
+
 // Keyboard shortcut
 document.getElementById('question').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
