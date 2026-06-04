@@ -411,7 +411,7 @@ async function loadSettings() {
                 document.getElementById('dedup-vector-threshold').value = settings.dedup.vector.threshold || 0.85;
                 document.getElementById('dedup-vector-model').value = settings.dedup.vector.model || '';
                 document.getElementById('dedup-vector-url').value = settings.dedup.vector.embedding_url || '';
-                // Don't set api_key value for security
+                document.getElementById('dedup-vector-key').value = settings.dedup.vector.embedding_api_key || '';
             }
         }
 
