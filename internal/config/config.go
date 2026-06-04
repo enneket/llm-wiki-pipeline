@@ -68,10 +68,10 @@ type VectorConfig struct {
 }
 
 type LLMConfig struct {
-	Provider string `yaml:"provider"`
-	Model    string `yaml:"model"`
-	APIKey   string `yaml:"api_key"`
-	BaseURL  string `yaml:"base_url"`
+	Provider string `yaml:"provider" json:"provider"`
+	Model    string `yaml:"model" json:"model"`
+	APIKey   string `yaml:"api_key" json:"api_key"`
+	BaseURL  string `yaml:"base_url" json:"base_url"`
 }
 
 // WebConfig holds web server configuration
