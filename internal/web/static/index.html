@@ -177,8 +177,8 @@
                             <input type="text" id="llm-base-url" placeholder="https://api.openai.com/v1">
                         </div>
                         <div class="settings-actions">
-                            <button onclick="saveSettings('llm')">保存 LLM 配置</button>
-                            <button onclick="testLLM()" class="test-btn">测试 LLM</button>
+                            <button onclick="saveSettings('llm')">保存</button>
+                            <button onclick="testLLM()" class="test-btn">测试</button>
                         </div>
                         <div id="llm-test-result" class="test-result" style="display:none"></div>
                     </div>
@@ -202,7 +202,7 @@
                                 <input type="checkbox" id="filter-keyword-match-any"> 匹配任意标签
                             </label>
                         </div>
-                        <button onclick="saveSettings('filter')">保存筛选配置</button>
+                        <button onclick="saveSettings('filter')">保存</button>
                     </div>
 
                     <!-- Dedup Settings -->
@@ -243,8 +243,8 @@
                             </div>
                         </div>
                         <div class="settings-actions">
-                            <button onclick="saveSettings('dedup')">保存去重配置</button>
-                            <button onclick="testEmbedding()" class="test-btn">测试 Embedding</button>
+                            <button onclick="saveSettings('dedup')">保存</button>
+                            <button onclick="testEmbedding()" class="test-btn">测试</button>
                         </div>
                         <div id="embedding-test-result" class="test-result" style="display:none"></div>
                     </div>
@@ -256,7 +256,7 @@
                             <label>全局采集间隔 (Cron)</label>
                             <input type="text" id="general-interval" placeholder="0 */6 * * *">
                         </div>
-                        <button onclick="saveSettings('general')">保存通用配置</button>
+                        <button onclick="saveSettings('general')">保存</button>
                     </div>
                 </div>
             </section>
