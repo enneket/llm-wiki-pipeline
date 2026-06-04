@@ -46,6 +46,9 @@ window.addEventListener('hashchange', () => {
 document.addEventListener('DOMContentLoaded', () => {
     const tabName = window.location.hash.slice(1) || 'query';
     switchTab(tabName);
+    
+    // Check and restore progress for running tasks
+    checkAndRestoreProgress();
 });
 
 // Query
@@ -762,4 +765,28 @@ function stopProcessProgress() {
     progressDiv.style.display = 'none';
     processBtn.disabled = false;
     processBtn.textContent = 'LLM 处理';
+}
+
+async function checkAndRestoreProgress() {
+    // Check Feed fetch status
+    try {
+        const fetchRes = await fetch('/api/feeds/fetch/status');
+        const fetchData = await fetchRes.json();
+        if (fetchData.running) {
+            startFetchProgress();
+        }
+    } catch (err) {
+        console.error('Failed to check fetch status:', err);
+    }
+    
+    // Check LLM process status
+    try {
+        const processRes = await fetch('/api/documents/process/status');
+        const processData = await processRes.json();
+        if (processData.running) {
+            startProcessProgress();
+        }
+    } catch (err) {
+        console.error('Failed to check process status:', err);
+    }
 }
