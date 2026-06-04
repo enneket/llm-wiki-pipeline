@@ -61,6 +61,10 @@ func (i *Ingest) Process(ctx context.Context, filePath string) (*WikiPage, error
 
 	page.Sources = []string{filePath}
 
+	if len(analysis.Categories) > 0 {
+		page.Tags = analysis.Categories
+	}
+
 	// Enqueue source page write
 	if err := i.writer.Enqueue(page, "write"); err != nil {
 		return nil, fmt.Errorf("enqueue write: %w", err)
@@ -75,7 +79,7 @@ func (i *Ingest) Process(ctx context.Context, filePath string) (*WikiPage, error
 			Title:     entity,
 			Slug:      slugify(entity),
 			Type:      "entity",
-			Tags:      []string{entity},
+			Tags:      analysis.Categories,
 			Content:   fmt.Sprintf("Entity: %s\n\nRelated to: [[%s]]", entity, page.Title),
 			Sources:   []string{filePath},
 			WikiLinks: []string{page.Title},
@@ -91,7 +95,7 @@ func (i *Ingest) Process(ctx context.Context, filePath string) (*WikiPage, error
 			Title:     concept,
 			Slug:      slugify(concept),
 			Type:      "concept",
-			Tags:      []string{concept},
+			Tags:      analysis.Categories,
 			Content:   fmt.Sprintf("Concept: %s\n\nDiscussed in: [[%s]]", concept, page.Title),
 			Sources:   []string{filePath},
 			WikiLinks: []string{page.Title},
@@ -99,6 +103,10 @@ func (i *Ingest) Process(ctx context.Context, filePath string) (*WikiPage, error
 		if err := i.writer.Enqueue(conceptPage, "write"); err != nil {
 			return nil, fmt.Errorf("enqueue concept write: %w", err)
 		}
+	}
+
+	if err := i.writer.Enqueue(page, "update_categories"); err != nil {
+		return nil, fmt.Errorf("enqueue categories: %w", err)
 	}
 
 	return page, nil
