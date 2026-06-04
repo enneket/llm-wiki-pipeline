@@ -57,21 +57,93 @@ func (s *Server) handleUpdateSettingCategory(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Save to DB
+	// Load existing config and merge with new data
 	store := config.NewStore(s.db.Pool)
-	if err := store.SaveCategory(ctx, category, data); err != nil {
+	merged, err := s.mergeSettings(ctx, store, category, data)
+	if err != nil {
+		log.Printf("[settings] merge %s: %v", category, err)
+		http.Error(w, "failed to merge settings", http.StatusInternalServerError)
+		return
+	}
+
+	// Save merged data to DB
+	if err := store.SaveCategory(ctx, category, merged); err != nil {
 		log.Printf("[settings] save %s: %v", category, err)
 		http.Error(w, "failed to save", http.StatusInternalServerError)
 		return
 	}
 
-	// Reload config in memory (will be implemented in Task 5)
+	// Reload config in memory
 	if err := s.reloadConfig(ctx); err != nil {
 		log.Printf("[settings] reload config: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+// mergeSettings merges new data with existing settings, preserving fields not in new data
+func (s *Server) mergeSettings(ctx context.Context, store *config.Store, category string, newData json.RawMessage) (json.RawMessage, error) {
+	// Load existing settings
+	existingData, err := store.GetCategory(ctx, category)
+	if err != nil {
+		// If category doesn't exist yet, use new data as-is
+		return newData, nil
+	}
+
+	// Parse both as maps for merging
+	var existing map[string]interface{}
+	if err := json.Unmarshal(existingData, &existing); err != nil {
+		return newData, nil
+	}
+
+	var new map[string]interface{}
+	if err := json.Unmarshal(newData, &new); err != nil {
+		return nil, err
+	}
+
+	// Deep merge: new values override existing, but preserve missing keys
+	merged := deepMerge(existing, new)
+
+	result, err := json.Marshal(merged)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// deepMerge merges two maps recursively, new values take precedence
+func deepMerge(existing, new map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	
+	// Copy all existing values
+	for k, v := range existing {
+		result[k] = v
+	}
+	
+	// Override with new values
+	for k, v := range new {
+		if existingVal, ok := result[k]; ok {
+			// If both are maps, merge recursively
+			existingMap, existingIsMap := existingVal.(map[string]interface{})
+			newMap, newIsMap := v.(map[string]interface{})
+			if existingIsMap && newIsMap {
+				result[k] = deepMerge(existingMap, newMap)
+				continue
+			}
+		}
+		// Otherwise use new value (even if empty string - user intentionally cleared it)
+		// But skip empty strings for API keys to preserve existing values
+		if str, ok := v.(string); ok && str == "" {
+			// Check if this is an API key field - preserve existing value
+			if k == "api_key" || k == "embedding_api_key" {
+				continue
+			}
+		}
+		result[k] = v
+	}
+	
+	return result
 }
 
 func (s *Server) reloadConfig(ctx context.Context) error {

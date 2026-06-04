@@ -434,6 +434,8 @@ async function saveSettings(category) {
                 api_key: document.getElementById('llm-api-key').value,
                 base_url: document.getElementById('llm-base-url').value
             };
+            // Don't send empty api_key (preserve existing)
+            if (!data.api_key) delete data.api_key;
             break;
         case 'filter':
             data = {
