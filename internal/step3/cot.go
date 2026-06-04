@@ -14,6 +14,7 @@ import (
 type analysisResult struct {
 	Entities        []string // key entities
 	Concepts        []string // key concepts
+	Categories      []string // domain-level tags (e.g. "AI", "security", "programming")
 	LinkSuggestions []string // suggested wikilinks (existing pages)
 	Summary         string   // concise summary of the document
 }
@@ -42,9 +43,11 @@ Respond with a JSON object with exactly these fields:
 {
   "entities": ["entity1", "entity2"],
   "concepts": ["concept1", "concept2"],
+  "categories": ["AI", "security"],
   "link_suggestions": ["ExistingPage1", "ExistingPage2"],
   "summary": "2-3 sentence summary of this document"
 }
+categories should be broad domain tags like "AI", "security", "programming", "business", "science", "hardware", "open_source", etc. Use English, lowercase with underscores.
 Only output valid JSON, no markdown wrapping.`
 
 	resp, err := i.llmClient.Complete(ctx, []llm.ChatMessage{
@@ -136,6 +139,7 @@ func parseJSON(s string, out *analysisResult) error {
 	var result struct {
 		Entities        []string `json:"entities"`
 		Concepts        []string `json:"concepts"`
+		Categories      []string `json:"categories"`
 		LinkSuggestions []string `json:"link_suggestions"`
 		Summary         string   `json:"summary"`
 	}
@@ -146,6 +150,7 @@ func parseJSON(s string, out *analysisResult) error {
 
 	out.Entities = result.Entities
 	out.Concepts = result.Concepts
+	out.Categories = result.Categories
 	out.LinkSuggestions = result.LinkSuggestions
 	out.Summary = result.Summary
 	return nil
