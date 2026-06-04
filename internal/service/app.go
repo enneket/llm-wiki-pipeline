@@ -210,78 +210,102 @@ func (a *App) processOne(ctx context.Context, feedName, filePath string) {
 func (a *App) processPendingDocuments() {
 	ctx := context.Background()
 
-	// Get all pending documents
-	rows, err := a.db.Pool.Query(ctx, `
-		SELECT d.id, d.url, d.title, d.content
+	// Get total count
+	var total int
+	err := a.db.Pool.QueryRow(ctx, `
+		SELECT COUNT(*)
 		FROM documents d
 		LEFT JOIN ingest_queue iq ON iq.document_id = d.id
 		WHERE iq.status IS NULL OR iq.status = 'pending'
-		ORDER BY d.created_at DESC
-		LIMIT 100
-	`)
+	`).Scan(&total)
 	if err != nil {
-		log.Printf("[process] query pending: %v", err)
+		log.Printf("[process] count pending: %v", err)
 		return
 	}
-	defer rows.Close()
 
-	var docs []struct {
-		ID      int64
-		URL     string
-		Title   string
-		Content string
-	}
-	for rows.Next() {
-		var d struct {
+	a.webServer.UpdateProcessProgress(total, 0, "")
+
+	processed := 0
+	batchSize := 100
+	for processed < total {
+		// Get batch of pending documents
+		rows, err := a.db.Pool.Query(ctx, `
+			SELECT d.id, d.url, d.title, d.content
+			FROM documents d
+			LEFT JOIN ingest_queue iq ON iq.document_id = d.id
+			WHERE iq.status IS NULL OR iq.status = 'pending'
+			ORDER BY d.created_at DESC
+			LIMIT $1
+		`, batchSize)
+		if err != nil {
+			log.Printf("[process] query pending: %v", err)
+			return
+		}
+
+		var docs []struct {
 			ID      int64
 			URL     string
 			Title   string
 			Content string
 		}
-		if err := rows.Scan(&d.ID, &d.URL, &d.Title, &d.Content); err != nil {
-			continue
+		for rows.Next() {
+			var d struct {
+				ID      int64
+				URL     string
+				Title   string
+				Content string
+			}
+			if err := rows.Scan(&d.ID, &d.URL, &d.Title, &d.Content); err != nil {
+				continue
+			}
+			docs = append(docs, d)
 		}
-		docs = append(docs, d)
-	}
+		rows.Close()
 
-	total := len(docs)
-	a.webServer.UpdateProcessProgress(total, 0, "")
-
-	for i, doc := range docs {
-		a.webServer.UpdateProcessProgress(total, i, doc.Title)
-
-		// Save to cleaned_raw for processing
-		filePath := filepath.Join(a.cfg.Paths.CleanedRaw, fmt.Sprintf("doc_%d.md", doc.ID))
-		if err := os.MkdirAll(a.cfg.Paths.CleanedRaw, 0755); err != nil {
-			log.Printf("[process] mkdir: %v", err)
-			continue
-		}
-		if err := os.WriteFile(filePath, []byte(doc.Content), 0644); err != nil {
-			log.Printf("[process] write file: %v", err)
-			continue
+		if len(docs) == 0 {
+			break
 		}
 
-		// Process with LLM
-		_, err := a.ingest.Process(ctx, filePath)
-		if err != nil {
-			log.Printf("[process] ingest %s: %v", doc.Title, err)
-			// Mark as failed
+		for _, doc := range docs {
+			a.webServer.UpdateProcessProgress(total, processed, doc.Title)
+
+			// Save to cleaned_raw for processing
+			filePath := filepath.Join(a.cfg.Paths.CleanedRaw, fmt.Sprintf("doc_%d.md", doc.ID))
+			if err := os.MkdirAll(a.cfg.Paths.CleanedRaw, 0755); err != nil {
+				log.Printf("[process] mkdir: %v", err)
+				processed++
+				continue
+			}
+			if err := os.WriteFile(filePath, []byte(doc.Content), 0644); err != nil {
+				log.Printf("[process] write file: %v", err)
+				processed++
+				continue
+			}
+
+			// Process with LLM
+			_, err := a.ingest.Process(ctx, filePath)
+			if err != nil {
+				log.Printf("[process] ingest %s: %v", doc.Title, err)
+				// Mark as failed
+				a.db.Pool.Exec(ctx, `
+					INSERT INTO ingest_queue (document_id, status, error)
+					VALUES ($1, 'failed', $2)
+					ON CONFLICT (document_id) DO UPDATE SET status = 'failed', error = $2
+				`, doc.ID, err.Error())
+				processed++
+				continue
+			}
+
+			// Mark as done
 			a.db.Pool.Exec(ctx, `
-				INSERT INTO ingest_queue (document_id, status, error)
-				VALUES ($1, 'failed', $2)
-				ON CONFLICT (document_id) DO UPDATE SET status = 'failed', error = $2
-			`, doc.ID, err.Error())
-			continue
+				INSERT INTO ingest_queue (document_id, status, processed_at)
+				VALUES ($1, 'done', NOW())
+				ON CONFLICT (document_id) DO UPDATE SET status = 'done', processed_at = NOW()
+			`, doc.ID)
+
+			processed++
+			log.Printf("[process] processed: %s (%d/%d)", doc.Title, processed, total)
 		}
-
-		// Mark as done
-		a.db.Pool.Exec(ctx, `
-			INSERT INTO ingest_queue (document_id, status, processed_at)
-			VALUES ($1, 'done', NOW())
-			ON CONFLICT (document_id) DO UPDATE SET status = 'done', processed_at = NOW()
-		`, doc.ID)
-
-		log.Printf("[process] processed: %s", doc.Title)
 	}
 
 	a.webServer.UpdateProcessProgress(total, total, "完成")
