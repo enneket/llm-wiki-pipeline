@@ -768,25 +768,28 @@ function stopProcessProgress() {
 }
 
 async function checkAndRestoreProgress() {
-    // Check Feed fetch status
     try {
-        const fetchRes = await fetch('/api/feeds/fetch/status');
-        const fetchData = await fetchRes.json();
+        const [fetchRes, processRes] = await Promise.all([
+            fetch('/api/feeds/fetch/status'),
+            fetch('/api/documents/process/status')
+        ]);
+
+        if (!fetchRes.ok) throw new Error(`HTTP ${fetchRes.status}`);
+        if (!processRes.ok) throw new Error(`HTTP ${processRes.status}`);
+
+        const [fetchData, processData] = await Promise.all([
+            fetchRes.json(),
+            processRes.json()
+        ]);
+
         if (fetchData.running) {
             startFetchProgress();
         }
-    } catch (err) {
-        console.error('Failed to check fetch status:', err);
-    }
-    
-    // Check LLM process status
-    try {
-        const processRes = await fetch('/api/documents/process/status');
-        const processData = await processRes.json();
+
         if (processData.running) {
             startProcessProgress();
         }
     } catch (err) {
-        console.error('Failed to check process status:', err);
+        console.error('Failed to check task status:', err);
     }
 }
