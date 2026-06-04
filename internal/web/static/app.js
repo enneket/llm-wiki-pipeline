@@ -385,9 +385,11 @@ async function loadSettings() {
     try {
         const res = await fetch('/api/settings');
         const settings = await res.json();
+        console.log('Loaded settings:', settings); // Debug log
 
         // LLM
         if (settings.llm) {
+            console.log('LLM settings:', settings.llm); // Debug log
             document.getElementById('llm-model').value = settings.llm.model || '';
             document.getElementById('llm-base-url').value = settings.llm.base_url || '';
             document.getElementById('llm-api-key').value = settings.llm.api_key || '';
@@ -407,6 +409,7 @@ async function loadSettings() {
             document.getElementById('dedup-url-exact').checked = settings.dedup.url_exact || false;
             document.getElementById('dedup-content-hash').checked = settings.dedup.content_hash || false;
             if (settings.dedup.vector) {
+                console.log('Vector settings:', settings.dedup.vector); // Debug log
                 document.getElementById('dedup-vector-enabled').checked = settings.dedup.vector.enabled || false;
                 document.getElementById('dedup-vector-threshold').value = settings.dedup.vector.threshold || 0.85;
                 document.getElementById('dedup-vector-model').value = settings.dedup.vector.model || '';
