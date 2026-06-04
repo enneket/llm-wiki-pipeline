@@ -175,7 +175,9 @@ func (s *Server) handleTestLLM(w http.ResponseWriter, r *http.Request) {
 		{Role: "user", Content: "Say 'Hello' in one word."},
 	})
 	if err != nil {
-		http.Error(w, fmt.Sprintf("LLM test failed: %v", err), http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("LLM test failed: %v", err)})
 		return
 	}
 
@@ -244,7 +246,9 @@ func (s *Server) handleTestEmbedding(w http.ResponseWriter, r *http.Request) {
 	client := llm.NewClientWithEmbed(llmCfg.APIKey, llmCfg.BaseURL, llmCfg.Model, embedURL, embedKey)
 	embeddings, err := client.Embed(ctx, []string{"Hello world"})
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Embedding test failed: %v", err), http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("Embedding test failed: %v", err)})
 		return
 	}
 
