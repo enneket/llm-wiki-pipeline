@@ -44,7 +44,7 @@ func New(cfg *config.Config, db *database.DB) *App {
 	embedURL := cfg.Dedup.Vector.EmbeddingURL
 	embedKey := cfg.Dedup.Vector.EmbeddingKey
 	if embedURL != "" && embedKey != "" {
-		llmClient = llm.NewClientWithEmbed(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model, embedURL, embedKey)
+		llmClient = llm.NewClientWithEmbed(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model, embedURL, embedKey, cfg.Dedup.Vector.Model)
 	} else {
 		llmClient = llm.NewClient(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model)
 	}
@@ -73,23 +73,23 @@ func New(cfg *config.Config, db *database.DB) *App {
 			cfg.Dedup.Vector.Enabled,
 		),
 		embedder: vectpkg.NewEmbedder(llmClient, db.Pool, cfg.Dedup.Vector.Model),
-		writer:   step3.NewWikiWriter(),
+		writer:   step3.NewWikiWriter(db.Pool),
 	}
 
 	app.filter.SetLLMClient(llmClient)
 
-	app.ingest = step3.NewIngest(llmClient, app.embedder, app.writer, app.dedup)
+	app.ingest = step3.NewIngest(llmClient, app.embedder, app.writer, app.dedup, cfg.Dedup.EmbeddingContext)
 	app.webServer = web.NewServer(db, llmClient, cfg)
 	app.webServer.SetFetchHandler(func() {
 		app.scheduler.RunOnce()
 	})
-	app.webServer.SetProcessHandler(func() {
-		app.processPendingDocuments()
+	app.webServer.SetProcessHandler(func(ctx context.Context) {
+		app.processPendingDocuments(ctx)
 	})
 	app.webServer.SetLLMUpdateHandler(func(apiKey, baseURL, model string) {
 		if apiKey != "" && baseURL != "" && model != "" {
 			app.llmClient = llm.NewClient(apiKey, baseURL, model)
-			app.ingest = step3.NewIngest(app.llmClient, app.embedder, app.writer, app.dedup)
+			app.ingest = step3.NewIngest(app.llmClient, app.embedder, app.writer, app.dedup, app.cfg.Dedup.EmbeddingContext)
 			log.Printf("[app] LLM client updated: %s", baseURL)
 		}
 	})
@@ -207,9 +207,7 @@ func (a *App) processOne(ctx context.Context, feedName, filePath string) {
 }
 
 // processPendingDocuments processes all pending documents with LLM
-func (a *App) processPendingDocuments() {
-	ctx := context.Background()
-
+func (a *App) processPendingDocuments(ctx context.Context) {
 	// Get total count
 	var total int
 	err := a.db.Pool.QueryRow(ctx, `
@@ -228,6 +226,15 @@ func (a *App) processPendingDocuments() {
 	processed := 0
 	batchSize := 100
 	for processed < total {
+		// Check for cancellation
+		select {
+		case <-ctx.Done():
+			log.Printf("[process] stopped by user (%d/%d)", processed, total)
+			a.webServer.UpdateProcessProgress(total, processed, "已停止")
+			return
+		default:
+		}
+
 		// Get batch of pending documents
 		rows, err := a.db.Pool.Query(ctx, `
 			SELECT d.id, d.url, d.title, d.content
@@ -267,6 +274,15 @@ func (a *App) processPendingDocuments() {
 		}
 
 		for _, doc := range docs {
+			// Check for cancellation before each document
+			select {
+			case <-ctx.Done():
+				log.Printf("[process] stopped by user (%d/%d)", processed, total)
+				a.webServer.UpdateProcessProgress(total, processed, "已停止")
+				return
+			default:
+			}
+
 			a.webServer.UpdateProcessProgress(total, processed, doc.Title)
 
 			// Save to cleaned_raw for processing

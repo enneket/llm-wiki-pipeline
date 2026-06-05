@@ -58,11 +58,25 @@
                         <div class="stat-label">处理中</div>
                     </div>
                     <div class="stat-card">
+                        <div class="stat-value" id="stat-done">-</div>
+                        <div class="stat-label">已完成</div>
+                    </div>
+                    <div class="stat-card">
                         <div class="stat-value" id="stat-failed">-</div>
                         <div class="stat-label">失败</div>
                     </div>
                 </div>
-                <button onclick="loadStatus()">刷新</button>
+                <div class="status-actions">
+                    <button onclick="loadStatus()">刷新</button>
+                    <button onclick="rebuildEmbeddings()" id="embed-btn">重建 Embeddings</button>
+                    <button onclick="stopEmbeddings()" id="embed-stop-btn" style="display:none">停止</button>
+                </div>
+                <div id="embed-progress" class="fetch-progress" style="display:none">
+                    <div class="progress-bar">
+                        <div id="embed-progress-fill" class="progress-fill"></div>
+                    </div>
+                    <span id="embed-progress-text" class="progress-text">准备中...</span>
+                </div>
             </section>
 
             <!-- Feeds Tab -->
@@ -90,11 +104,24 @@
                     <span id="progress-text" class="progress-text">准备中...</span>
                 </div>
                 <div id="feed-list" class="feed-list"></div>
+                <div id="feed-pagination" class="doc-pagination"></div>
             </section>
 
             <!-- Wiki Tab -->
             <section id="wiki" class="tab-content">
+                <div class="wiki-tabs">
+                    <button class="wiki-tab active" data-wiki="entity">实体</button>
+                    <button class="wiki-tab" data-wiki="concept">概念</button>
+                    <button class="wiki-tab" data-wiki="source">来源</button>
+                </div>
+                <div class="wiki-filters">
+                    <select id="wiki-filter-tag">
+                        <option value="">全部分类</option>
+                    </select>
+                    <input id="wiki-search" placeholder="搜索..." type="text">
+                </div>
                 <div id="wiki-list" class="wiki-list"></div>
+                <div id="wiki-pagination" class="doc-pagination"></div>
                 <div id="wiki-content" class="wiki-content" style="display:none">
                     <button onclick="backToList()">返回列表</button>
                     <h2 id="wiki-title"></h2>
@@ -132,6 +159,7 @@
                     <span id="doc-page-info">第 0/0 页</span>
                     <div class="doc-actions">
                         <button onclick="processDocuments()" id="process-btn" class="process-btn">LLM 处理</button>
+                        <button onclick="stopProcessDocuments()" id="process-stop-btn" class="process-stop-btn" style="display:none">停止</button>
                     </div>
                 </div>
                 <div id="process-progress" class="fetch-progress" style="display:none">
@@ -157,107 +185,118 @@
 
             <!-- Settings Tab -->
             <section id="settings" class="tab-content">
-                <div class="settings-grid">
-                    <!-- LLM Settings -->
-                    <div class="settings-card">
-                        <h3>LLM 配置</h3>
-                        <div class="form-group">
-                            <label>Model</label>
-                            <input type="text" id="llm-model" placeholder="gpt-4o">
-                        </div>
-                        <div class="form-group">
-                            <label>API Key</label>
-                            <div class="api-key-field">
-                                <input type="password" id="llm-api-key" placeholder="sk-...">
-                                <button class="toggle-visibility" onclick="toggleApiKey('llm-api-key')">显示</button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Base URL</label>
-                            <input type="text" id="llm-base-url" placeholder="https://api.openai.com/v1">
-                        </div>
-                        <div class="settings-actions">
-                            <button onclick="saveSettings('llm')">保存</button>
-                            <button onclick="testLLM()" class="test-btn">测试</button>
-                        </div>
-                        <div id="llm-test-result" class="test-result" style="display:none"></div>
-                    </div>
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-settings="llm">LLM 配置</button>
+                    <button class="settings-tab" data-settings="filter">筛选配置</button>
+                    <button class="settings-tab" data-settings="dedup">去重配置</button>
+                    <button class="settings-tab" data-settings="general">通用配置</button>
+                </div>
 
-                    <!-- Filter Settings -->
-                    <div class="settings-card">
-                        <h3>筛选配置</h3>
-                        <div class="form-group">
-                            <label>模式</label>
-                            <select id="filter-mode">
-                                <option value="keyword">关键词</option>
-                                <option value="llm_judgment">LLM 判断</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>关键词标签 (逗号分隔)</label>
-                            <input type="text" id="filter-keyword-tags" placeholder="AI,LLM,Rust">
-                        </div>
-                        <div class="form-group">
-                            <label>
-                                <input type="checkbox" id="filter-keyword-match-any"> 匹配任意标签
-                            </label>
-                        </div>
-                        <button onclick="saveSettings('filter')">保存</button>
+                <!-- LLM Settings -->
+                <div id="settings-llm" class="settings-panel active">
+                    <div class="form-group">
+                        <label>Model</label>
+                        <input type="text" id="llm-model" placeholder="gpt-4o">
                     </div>
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <div class="api-key-field">
+                            <input type="password" id="llm-api-key" placeholder="sk-...">
+                            <button class="toggle-visibility" onclick="toggleApiKey('llm-api-key')">显示</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Base URL</label>
+                        <input type="text" id="llm-base-url" placeholder="https://api.openai.com/v1">
+                    </div>
+                    <div class="settings-actions">
+                        <button onclick="saveSettings('llm')">保存</button>
+                        <button onclick="testLLM()" class="test-btn">测试</button>
+                    </div>
+                    <div id="llm-test-result" class="test-result" style="display:none"></div>
+                </div>
 
-                    <!-- Dedup Settings -->
-                    <div class="settings-card">
-                        <h3>去重配置</h3>
-                        <div class="form-group">
-                            <label>
-                                <input type="checkbox" id="dedup-url-exact"> URL 精确去重
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>
-                                <input type="checkbox" id="dedup-content-hash"> 内容哈希去重
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>
-                                <input type="checkbox" id="dedup-vector-enabled"> 向量去重
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>向量阈值 (0-1)</label>
-                            <input type="number" id="dedup-vector-threshold" min="0" max="1" step="0.05" placeholder="0.85">
-                        </div>
-                        <div class="form-group">
-                            <label>向量模型</label>
-                            <input type="text" id="dedup-vector-model" placeholder="text-embedding-3-small">
-                        </div>
-                        <div class="form-group">
-                            <label>向量 Base URL (可选)</label>
-                            <input type="text" id="dedup-vector-url" placeholder="留空则使用 LLM Base URL">
-                        </div>
-                        <div class="form-group">
-                            <label>向量 API Key (可选)</label>
-                            <div class="api-key-field">
-                                <input type="password" id="dedup-vector-key" placeholder="留空则使用 LLM API Key">
-                                <button class="toggle-visibility" onclick="toggleApiKey('dedup-vector-key')">显示</button>
-                            </div>
-                        </div>
-                        <div class="settings-actions">
-                            <button onclick="saveSettings('dedup')">保存</button>
-                            <button onclick="testEmbedding()" class="test-btn">测试</button>
-                        </div>
-                        <div id="embedding-test-result" class="test-result" style="display:none"></div>
+                <!-- Filter Settings -->
+                <div id="settings-filter" class="settings-panel">
+                    <div class="form-group">
+                        <label>模式</label>
+                        <select id="filter-mode">
+                            <option value="keyword">关键词</option>
+                            <option value="llm_judgment">LLM 判断</option>
+                        </select>
                     </div>
+                    <div class="form-group">
+                        <label>关键词标签</label>
+                        <div class="tags-input-container" id="filter-tags-container">
+                            <div class="tags-list" id="filter-tags-list"></div>
+                            <input type="text" id="filter-keyword-tags-input" placeholder="输入标签后按回车添加" class="tags-text-input">
+                        </div>
+                        <input type="hidden" id="filter-keyword-tags">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="filter-keyword-match-any"> 匹配任意标签
+                        </label>
+                    </div>
+                    <button onclick="saveSettings('filter')">保存</button>
+                </div>
 
-                    <!-- General Settings -->
-                    <div class="settings-card">
-                        <h3>通用配置</h3>
-                        <div class="form-group">
-                            <label>全局采集间隔 (Cron)</label>
-                            <input type="text" id="general-interval" placeholder="0 */6 * * *">
-                        </div>
-                        <button onclick="saveSettings('general')">保存</button>
+                <!-- Dedup Settings -->
+                <div id="settings-dedup" class="settings-panel">
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="dedup-url-exact"> URL 精确去重
+                        </label>
                     </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="dedup-content-hash"> 内容哈希去重
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="dedup-vector-enabled"> 向量去重
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="dedup-embedding-context"> Ingest 时使用 Embedding 搜索上下文
+                        </label>
+                        <p class="form-hint">关闭后使用数据库查询替代，节省 API 调用</p>
+                    </div>
+                    <div class="form-group">
+                        <label>向量阈值 (0-1)</label>
+                        <input type="number" id="dedup-vector-threshold" min="0" max="1" step="0.05" placeholder="0.85">
+                    </div>
+                    <div class="form-group">
+                        <label>向量模型</label>
+                        <input type="text" id="dedup-vector-model" placeholder="text-embedding-3-small">
+                    </div>
+                    <div class="form-group">
+                        <label>向量 Base URL (可选)</label>
+                        <input type="text" id="dedup-vector-url" placeholder="留空则使用 LLM Base URL">
+                    </div>
+                    <div class="form-group">
+                        <label>向量 API Key (可选)</label>
+                        <div class="api-key-field">
+                            <input type="password" id="dedup-vector-key" placeholder="留空则使用 LLM API Key">
+                            <button class="toggle-visibility" onclick="toggleApiKey('dedup-vector-key')">显示</button>
+                        </div>
+                    </div>
+                    <div class="settings-actions">
+                        <button onclick="saveSettings('dedup')">保存</button>
+                        <button onclick="testEmbedding()" class="test-btn">测试</button>
+                    </div>
+                    <div id="embedding-test-result" class="test-result" style="display:none"></div>
+                </div>
+
+                <!-- General Settings -->
+                <div id="settings-general" class="settings-panel">
+                    <div class="form-group">
+                        <label>全局采集间隔 (Cron)</label>
+                        <input type="text" id="general-interval" placeholder="0 */6 * * *">
+                    </div>
+                    <button onclick="saveSettings('general')">保存</button>
                 </div>
             </section>
         </main>

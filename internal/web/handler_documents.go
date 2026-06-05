@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -284,19 +285,33 @@ func (s *Server) handleProcessDocuments(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	s.processState.cancel = cancel
 	s.processState.Running = true
 	s.processState.Total = 0
 	s.processState.Completed = 0
 	s.processState.Current = "准备中..."
 
 	go func() {
-		s.onProcess()
+		s.onProcess(ctx)
 		s.processState.Running = false
 		s.processState.Current = ""
+		s.processState.cancel = nil
 	}()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "processing"})
+}
+
+func (s *Server) handleProcessStop(w http.ResponseWriter, r *http.Request) {
+	if !s.processState.Running || s.processState.cancel == nil {
+		http.Error(w, "no processing in progress", http.StatusConflict)
+		return
+	}
+
+	s.processState.cancel()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "stopping"})
 }
 
 func (s *Server) handleProcessStatus(w http.ResponseWriter, r *http.Request) {

@@ -99,6 +99,7 @@ async function loadStatus() {
         document.getElementById('stat-wiki').textContent = data.wiki_pages;
         document.getElementById('stat-pending').textContent = data.pending;
         document.getElementById('stat-processing').textContent = data.processing;
+        document.getElementById('stat-done').textContent = data.done;
         document.getElementById('stat-failed').textContent = data.failed;
     } catch (err) {
         console.error('Failed to load status:', err);
@@ -106,28 +107,69 @@ async function loadStatus() {
 }
 
 // Feeds
+let allFeeds = [];
+let feedState = { page: 1, perPage: 20 };
+
 async function loadFeeds() {
     try {
         const res = await fetch('/api/feeds');
-        const feeds = await res.json();
-
-        const list = document.getElementById('feed-list');
-        list.innerHTML = feeds.map(f => `
-            <div class="feed-item">
-                <div class="feed-info">
-                    <h3>${escapeHtml(f.name)}</h3>
-                    <p>${escapeHtml(f.url)}</p>
-                    ${f.tags.length ? `<p>标签: ${f.tags.join(', ')}</p>` : ''}
-                </div>
-                <div class="feed-actions">
-                    <button class="edit-btn" onclick="editFeed(${f.id}, '${escapeHtml(f.name)}', '${escapeHtml(f.url)}', '${f.tags.join(',')}')">编辑</button>
-                    <button class="delete-btn" onclick="deleteFeed(${f.id})">删除</button>
-                </div>
-            </div>
-        `).join('');
+        allFeeds = await res.json();
+        feedState.page = 1;
+        renderFeedList();
     } catch (err) {
         console.error('Failed to load feeds:', err);
     }
+}
+
+function renderFeedList() {
+    const totalItems = allFeeds.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / feedState.perPage));
+    if (feedState.page > totalPages) feedState.page = totalPages;
+
+    const start = (feedState.page - 1) * feedState.perPage;
+    const end = start + feedState.perPage;
+    const pageFeeds = allFeeds.slice(start, end);
+
+    const list = document.getElementById('feed-list');
+    list.innerHTML = pageFeeds.map(f => `
+        <div class="feed-item">
+            <div class="feed-info">
+                <h3>${escapeHtml(f.name)}</h3>
+                <p>${escapeHtml(f.url)}</p>
+                ${f.tags.length ? `<p>标签: ${f.tags.join(', ')}</p>` : ''}
+            </div>
+            <div class="feed-actions">
+                <button class="edit-btn" onclick="editFeed(${f.id}, '${escapeHtml(f.name)}', '${escapeHtml(f.url)}', '${f.tags.join(',')}')">编辑</button>
+                <button class="delete-btn" onclick="deleteFeed(${f.id})">删除</button>
+            </div>
+        </div>
+    `).join('');
+
+    // Pagination
+    const pagDiv = document.getElementById('feed-pagination');
+    let pagHtml = '';
+    if (totalPages > 1) {
+        if (feedState.page > 1) {
+            pagHtml += `<button onclick="goFeedPage(1)">首页</button>`;
+            pagHtml += `<button onclick="goFeedPage(${feedState.page - 1})">上一页</button>`;
+        }
+        let startPage = Math.max(1, feedState.page - 3);
+        let endPage = Math.min(totalPages, feedState.page + 3);
+        for (let i = startPage; i <= endPage; i++) {
+            pagHtml += `<button onclick="goFeedPage(${i})" ${i === feedState.page ? 'class="active"' : ''}>${i}</button>`;
+        }
+        if (feedState.page < totalPages) {
+            pagHtml += `<button onclick="goFeedPage(${feedState.page + 1})">下一页</button>`;
+            pagHtml += `<button onclick="goFeedPage(${totalPages})">末页</button>`;
+        }
+    }
+    pagDiv.innerHTML = pagHtml;
+    pagDiv.style.display = totalPages > 1 ? 'flex' : 'none';
+}
+
+function goFeedPage(page) {
+    feedState.page = page;
+    renderFeedList();
 }
 
 function editFeed(id, name, url, tags) {
@@ -219,30 +261,124 @@ async function deleteFeed(id) {
 }
 
 // Wiki
+let allWikiPages = [];
+let currentWikiType = 'entity';
+let wikiState = { page: 1, perPage: 50 };
+
 async function loadWiki() {
     try {
         const res = await fetch('/api/wiki');
-        const pages = await res.json();
+        allWikiPages = await res.json();
 
-        const list = document.getElementById('wiki-list');
-        if (!pages || pages.length === 0) {
-            list.innerHTML = '<p>暂无 Wiki 页面</p>';
-        } else {
-            list.innerHTML = pages.map(p => `
-                <div class="wiki-item" onclick="loadWikiPage('${p.slug}')">
-                    <h3>${escapeHtml(p.title)}</h3>
-                    <div class="tags">
-                        ${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
-                    </div>
-                </div>
-            `).join('');
-        }
+        // Populate tag filter
+        const tags = new Set();
+        allWikiPages.forEach(p => (p.tags || []).forEach(t => tags.add(t)));
+        const tagSelect = document.getElementById('wiki-filter-tag');
+        const currentTag = tagSelect.value;
+        tagSelect.innerHTML = '<option value="">全部分类</option>' +
+            Array.from(tags).sort().map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+        tagSelect.value = currentTag;
 
-        document.getElementById('wiki-list').style.display = 'block';
-        document.getElementById('wiki-content').style.display = 'none';
+        wikiState.page = 1;
+        renderWikiList();
     } catch (err) {
         console.error('Failed to load wiki:', err);
     }
+}
+
+function renderWikiList() {
+    const tagFilter = document.getElementById('wiki-filter-tag').value;
+    const search = document.getElementById('wiki-search').value.toLowerCase();
+
+    let filtered = allWikiPages.filter(p => p.page_type === currentWikiType);
+    if (tagFilter) filtered = filtered.filter(p => (p.tags || []).includes(tagFilter));
+    if (search) filtered = filtered.filter(p => p.title.toLowerCase().includes(search));
+
+    // Group by tag
+    const groups = {};
+    filtered.forEach(p => {
+        const mainTag = (p.tags || [])[0] || '未分类';
+        if (!groups[mainTag]) groups[mainTag] = [];
+        groups[mainTag].push(p);
+    });
+
+    const sortedGroups = Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+    const totalItems = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / wikiState.perPage));
+    if (wikiState.page > totalPages) wikiState.page = totalPages;
+
+    const start = (wikiState.page - 1) * wikiState.perPage;
+    const end = start + wikiState.perPage;
+
+    // Paginate groups
+    let count = 0;
+    const pageGroups = [];
+    for (const [tag, pages] of sortedGroups) {
+        const groupStart = count;
+        const groupEnd = count + pages.length;
+        if (groupEnd > start && groupStart < end) {
+            const sliceStart = Math.max(0, start - groupStart);
+            const sliceEnd = Math.min(pages.length, end - groupStart);
+            pageGroups.push([tag, pages.slice(sliceStart, sliceEnd)]);
+        }
+        count += pages.length;
+        if (count >= end) break;
+    }
+
+    const list = document.getElementById('wiki-list');
+    if (!filtered || filtered.length === 0) {
+        list.innerHTML = '<p>暂无页面</p>';
+    } else {
+        list.innerHTML = pageGroups.map(([tag, pages]) => `
+            <div class="wiki-group">
+                <h3 class="wiki-group-title">${escapeHtml(tag)} <span class="wiki-group-count">(${(groups[tag] || []).length})</span></h3>
+                <div class="wiki-group-items">
+                    ${pages.map(p => `
+                        <div class="wiki-item" onclick="loadWikiPage('${p.slug}')">
+                            <span class="wiki-item-title">${escapeHtml(p.title)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Pagination
+    const pagDiv = document.getElementById('wiki-pagination');
+    let pagHtml = '';
+    if (totalPages > 1) {
+        if (wikiState.page > 1) {
+            pagHtml += `<button onclick="goWikiPage(1)">首页</button>`;
+            pagHtml += `<button onclick="goWikiPage(${wikiState.page - 1})">上一页</button>`;
+        }
+        let startPage = Math.max(1, wikiState.page - 3);
+        let endPage = Math.min(totalPages, wikiState.page + 3);
+        if (startPage > 1) {
+            pagHtml += `<button onclick="goWikiPage(1)">1</button>`;
+            if (startPage > 2) pagHtml += `<span class="page-ellipsis">...</span>`;
+        }
+        for (let i = startPage; i <= endPage; i++) {
+            pagHtml += `<button onclick="goWikiPage(${i})" ${i === wikiState.page ? 'class="active"' : ''}>${i}</button>`;
+        }
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) pagHtml += `<span class="page-ellipsis">...</span>`;
+            pagHtml += `<button onclick="goWikiPage(${totalPages})">${totalPages}</button>`;
+        }
+        if (wikiState.page < totalPages) {
+            pagHtml += `<button onclick="goWikiPage(${wikiState.page + 1})">下一页</button>`;
+            pagHtml += `<button onclick="goWikiPage(${totalPages})">末页</button>`;
+        }
+    }
+    pagDiv.innerHTML = pagHtml;
+    pagDiv.style.display = totalPages > 1 ? 'flex' : 'none';
+
+    document.getElementById('wiki-list').style.display = 'block';
+    document.getElementById('wiki-content').style.display = 'none';
+}
+
+function goWikiPage(page) {
+    wikiState.page = page;
+    renderWikiList();
 }
 
 async function loadWikiPage(slug) {
@@ -399,7 +535,7 @@ async function loadSettings() {
         if (settings.filter) {
             document.getElementById('filter-mode').value = settings.filter.mode || 'keyword';
             if (settings.filter.keyword) {
-                document.getElementById('filter-keyword-tags').value = (settings.filter.keyword.tags || []).join(',');
+                renderFilterTags(settings.filter.keyword.tags || []);
                 document.getElementById('filter-keyword-match-any').checked = settings.filter.keyword.match_any || false;
             }
         }
@@ -408,6 +544,7 @@ async function loadSettings() {
         if (settings.dedup) {
             document.getElementById('dedup-url-exact').checked = settings.dedup.url_exact || false;
             document.getElementById('dedup-content-hash').checked = settings.dedup.content_hash || false;
+            document.getElementById('dedup-embedding-context').checked = settings.dedup.embedding_context || false;
             if (settings.dedup.vector) {
                 console.log('Vector settings:', settings.dedup.vector); // Debug log
                 document.getElementById('dedup-vector-enabled').checked = settings.dedup.vector.enabled || false;
@@ -445,7 +582,7 @@ async function saveSettings(category) {
                 mode: document.getElementById('filter-mode').value,
                 keyword: {
                     match_any: document.getElementById('filter-keyword-match-any').checked,
-                    tags: document.getElementById('filter-keyword-tags').value.split(',').map(t => t.trim()).filter(Boolean)
+                    tags: getFilterTags()
                 }
             };
             break;
@@ -453,6 +590,7 @@ async function saveSettings(category) {
             data = {
                 url_exact: document.getElementById('dedup-url-exact').checked,
                 content_hash: document.getElementById('dedup-content-hash').checked,
+                embedding_context: document.getElementById('dedup-embedding-context').checked,
                 vector: {
                     enabled: document.getElementById('dedup-vector-enabled').checked,
                     threshold: parseFloat(document.getElementById('dedup-vector-threshold').value) || 0.85,
@@ -463,6 +601,7 @@ async function saveSettings(category) {
             };
             // Don't send empty api_key (preserve existing)
             if (!data.vector.embedding_api_key) delete data.vector.embedding_api_key;
+            if (!data.vector.embedding_url) delete data.vector.embedding_url;
             break;
         case 'general':
             data = {
@@ -545,7 +684,115 @@ document.getElementById('question').addEventListener('keydown', (e) => {
     }
 });
 
-// Documents
+// Embeddings
+let embedPollInterval = null;
+
+async function rebuildEmbeddings() {
+    try {
+        const res = await fetch('/api/embeddings/rebuild', { method: 'POST' });
+        if (!res.ok) {
+            const err = await res.text();
+            throw new Error(err);
+        }
+        startEmbedProgress();
+    } catch (err) {
+        alert('重建失败: ' + err.message);
+    }
+}
+
+async function stopEmbeddings() {
+    try {
+        await fetch('/api/embeddings/stop', { method: 'POST' });
+    } catch (err) {
+        alert('停止失败: ' + err.message);
+    }
+}
+
+function startEmbedProgress() {
+    const progressDiv = document.getElementById('embed-progress');
+    const progressFill = document.getElementById('embed-progress-fill');
+    const progressText = document.getElementById('embed-progress-text');
+    const embedBtn = document.getElementById('embed-btn');
+    const stopBtn = document.getElementById('embed-stop-btn');
+
+    progressDiv.style.display = 'flex';
+    progressFill.style.width = '0%';
+    progressText.textContent = '准备中...';
+    embedBtn.disabled = true;
+    embedBtn.textContent = '重建中...';
+    stopBtn.style.display = 'inline-block';
+
+    embedPollInterval = setInterval(async () => {
+        try {
+            const res = await fetch('/api/embeddings/status');
+            const data = await res.json();
+
+            if (!data.running) {
+                stopEmbedProgress();
+                return;
+            }
+
+            const percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
+            progressFill.style.width = percent + '%';
+            progressText.textContent = data.current 
+                ? `${data.completed}/${data.total} - ${data.current}` 
+                : `${data.completed}/${data.total}`;
+        } catch (err) {
+            console.error('Failed to fetch embed status:', err);
+        }
+    }, 500);
+}
+
+function stopEmbedProgress() {
+    if (embedPollInterval) {
+        clearInterval(embedPollInterval);
+        embedPollInterval = null;
+    }
+
+    const progressDiv = document.getElementById('embed-progress');
+    const embedBtn = document.getElementById('embed-btn');
+    const stopBtn = document.getElementById('embed-stop-btn');
+
+    progressDiv.style.display = 'none';
+    embedBtn.disabled = false;
+    embedBtn.textContent = '重建 Embeddings';
+    stopBtn.style.display = 'none';
+}
+
+// Check embed progress on load
+async function checkAndRestoreProgress() {
+    try {
+        const [fetchRes, processRes, embedRes] = await Promise.all([
+            fetch('/api/feeds/fetch/status'),
+            fetch('/api/documents/process/status'),
+            fetch('/api/embeddings/status')
+        ]);
+
+        if (!fetchRes.ok) throw new Error(`HTTP ${fetchRes.status}`);
+        if (!processRes.ok) throw new Error(`HTTP ${processRes.status}`);
+        if (!embedRes.ok) throw new Error(`HTTP ${embedRes.status}`);
+
+        const [fetchData, processData, embedData] = await Promise.all([
+            fetchRes.json(),
+            processRes.json(),
+            embedRes.json()
+        ]);
+
+        if (fetchData.running) {
+            startFetchProgress();
+        }
+
+        if (processData.running) {
+            startProcessProgress();
+        }
+
+        if (embedData.running) {
+            startEmbedProgress();
+        }
+    } catch (err) {
+        console.error('Failed to check task status:', err);
+    }
+}
 let docState = { page: 1, perPage: 20, total: 0 };
 
 async function loadDocuments() {
@@ -600,21 +847,38 @@ async function fetchDocuments() {
 
         const list = document.getElementById('doc-list');
         const items = data.items || [];
-        list.innerHTML = items.map(d => {
-            const statusMap = { pending: '⏳ 待处理', processing: '🔄 处理中', done: '✅ 已完成', failed: '❌ 失败' };
+        const statusMap = { pending: '⏳ 待处理', processing: '🔄 处理中', done: '✅ 已完成', failed: '❌ 失败' };
+
+        // Group by date
+        const groups = {};
+        items.forEach(d => {
             const publishedTime = d.published && new Date(d.published).getFullYear() >= 2000 ? d.published : null;
             const displayTime = publishedTime || d.created_at;
-            return `
-                <div class="doc-item">
-                    <h3><a href="#" onclick="loadDocPage(${d.id}); return false;">${escapeHtml(d.title || '无标题')}</a></h3>
-                    <div class="doc-item-meta">
-                        <span>来源: ${escapeHtml(d.feed_name || '-')}</span>
-                        <span>${statusMap[d.status] || d.status}</span>
-                        <span>${formatTime(displayTime)}</span>
-                    </div>
+            const dateStr = displayTime ? new Date(displayTime).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '未知日期';
+            if (!groups[dateStr]) groups[dateStr] = [];
+            groups[dateStr].push(d);
+        });
+
+        list.innerHTML = Object.entries(groups).map(([date, docs]) => `
+            <div class="doc-group">
+                <h3 class="doc-group-title">${escapeHtml(date)}</h3>
+                <div class="doc-group-items">
+                    ${docs.map(d => {
+                        const publishedTime = d.published && new Date(d.published).getFullYear() >= 2000 ? d.published : null;
+                        const displayTime = publishedTime || d.created_at;
+                        return `
+                        <div class="doc-item">
+                            <h3><a href="#" onclick="loadDocPage(${d.id}); return false;">${escapeHtml(d.title || '无标题')}</a></h3>
+                            <div class="doc-item-meta">
+                                <span>来源: ${escapeHtml(d.feed_name || '-')}</span>
+                                <span>${statusMap[d.status] || d.status}</span>
+                                <span>${formatTime(displayTime)}</span>
+                            </div>
+                        </div>`;
+                    }).join('')}
                 </div>
-            `;
-        }).join('');
+            </div>
+        `).join('');
 
         // Pagination
         const pagDiv = document.getElementById('doc-pagination');
@@ -724,17 +988,31 @@ async function processDocuments() {
     }
 }
 
+async function stopProcessDocuments() {
+    try {
+        const res = await fetch('/api/documents/process/stop', { method: 'POST' });
+        if (!res.ok) {
+            const err = await res.text();
+            throw new Error(err);
+        }
+    } catch (err) {
+        alert('停止失败: ' + err.message);
+    }
+}
+
 function startProcessProgress() {
     const progressDiv = document.getElementById('process-progress');
     const progressFill = document.getElementById('process-progress-fill');
     const progressText = document.getElementById('process-progress-text');
     const processBtn = document.getElementById('process-btn');
+    const stopBtn = document.getElementById('process-stop-btn');
 
     progressDiv.style.display = 'flex';
     progressFill.style.width = '0%';
     progressText.textContent = '准备中...';
     processBtn.disabled = true;
     processBtn.textContent = '处理中...';
+    stopBtn.style.display = 'inline-block';
 
     processPollInterval = setInterval(async () => {
         try {
@@ -766,35 +1044,85 @@ function stopProcessProgress() {
 
     const progressDiv = document.getElementById('process-progress');
     const processBtn = document.getElementById('process-btn');
+    const stopBtn = document.getElementById('process-stop-btn');
 
     progressDiv.style.display = 'none';
     processBtn.disabled = false;
     processBtn.textContent = 'LLM 处理';
+    stopBtn.style.display = 'none';
 }
 
-async function checkAndRestoreProgress() {
-    try {
-        const [fetchRes, processRes] = await Promise.all([
-            fetch('/api/feeds/fetch/status'),
-            fetch('/api/documents/process/status')
-        ]);
+// Filter Tags Management
+function renderFilterTags(tags) {
+    const list = document.getElementById('filter-tags-list');
+    list.innerHTML = '';
+    tags.forEach(tag => addFilterTagChip(tag));
+}
 
-        if (!fetchRes.ok) throw new Error(`HTTP ${fetchRes.status}`);
-        if (!processRes.ok) throw new Error(`HTTP ${processRes.status}`);
+function addFilterTagChip(tag) {
+    const list = document.getElementById('filter-tags-list');
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.innerHTML = `<span>${escapeHtml(tag)}</span><span class="tag-remove" onclick="removeFilterTag(this)">×</span>`;
+    list.appendChild(chip);
+}
 
-        const [fetchData, processData] = await Promise.all([
-            fetchRes.json(),
-            processRes.json()
-        ]);
+function removeFilterTag(el) {
+    el.parentElement.remove();
+}
 
-        if (fetchData.running) {
-            startFetchProgress();
-        }
+function getFilterTags() {
+    const chips = document.querySelectorAll('#filter-tags-list .tag-chip');
+    return Array.from(chips).map(c => c.querySelector('span').textContent.trim());
+}
 
-        if (processData.running) {
-            startProcessProgress();
-        }
-    } catch (err) {
-        console.error('Failed to check task status:', err);
+// Init tags input
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('filter-keyword-tags-input');
+    const container = document.getElementById('filter-tags-container');
+
+    if (input) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                const val = input.value.trim().replace(/,$/g, '');
+                if (val) {
+                    addFilterTagChip(val);
+                    input.value = '';
+                }
+            }
+            if (e.key === 'Backspace' && input.value === '') {
+                const chips = document.querySelectorAll('#filter-tags-list .tag-chip');
+                if (chips.length > 0) chips[chips.length - 1].remove();
+            }
+        });
     }
-}
+
+    if (container) {
+        container.addEventListener('click', () => input && input.focus());
+    }
+});
+
+// Wiki tabs and filters
+document.querySelectorAll('.wiki-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.wiki-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentWikiType = tab.dataset.wiki;
+        renderWikiList();
+    });
+});
+['wiki-filter-tag'].forEach(id => {
+    document.getElementById(id).addEventListener('change', renderWikiList);
+});
+document.getElementById('wiki-search').addEventListener('input', renderWikiList);
+
+// Settings Tabs
+document.querySelectorAll('.settings-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('settings-' + tab.dataset.settings).classList.add('active');
+    });
+});

@@ -17,54 +17,55 @@ import (
 
 // Config holds all application config
 type Config struct {
-	Feeds  FeedsConfig
-	Filter FilterConfig
-	Dedup  DedupConfig
-	LLM    LLMConfig
-	Web    WebConfig
-	Paths  PathsConfig
+	Feeds  FeedsConfig  `json:"feeds"`
+	Filter FilterConfig `json:"filter"`
+	Dedup  DedupConfig  `json:"dedup"`
+	LLM    LLMConfig    `json:"llm"`
+	Web    WebConfig    `json:"web"`
+	Paths  PathsConfig  `json:"paths"`
 }
 
 type FeedsConfig struct {
-	Feeds    []FeedEntry `yaml:"feeds"`
-	Interval string      `yaml:"interval"` // global interval for all feeds
+	Feeds    []FeedEntry `yaml:"feeds" json:"feeds"`
+	Interval string      `yaml:"interval" json:"interval"` // global interval for all feeds
 }
 
 type FeedEntry struct {
-	Name string   `yaml:"name"`
-	URL  string   `yaml:"url"`
-	Tags []string `yaml:"tags"`
+	Name string   `yaml:"name" json:"name"`
+	URL  string   `yaml:"url" json:"url"`
+	Tags []string `yaml:"tags" json:"tags"`
 }
 
 type FilterConfig struct {
-	Mode        string            `yaml:"mode"`
-	Keyword     KeywordFilter     `yaml:"keyword"`
-	LLMJudgment LLMJudgmentConfig `yaml:"llm_judgment"`
+	Mode        string            `yaml:"mode" json:"mode"`
+	Keyword     KeywordFilter     `yaml:"keyword" json:"keyword"`
+	LLMJudgment LLMJudgmentConfig `yaml:"llm_judgment" json:"llm_judgment"`
 }
 
 type KeywordFilter struct {
-	MatchAny bool     `yaml:"match_any"`
-	Tags     []string `yaml:"tags"`
+	MatchAny bool     `yaml:"match_any" json:"match_any"`
+	Tags     []string `yaml:"tags" json:"tags"`
 }
 
 type LLMJudgmentConfig struct {
-	Model         string  `yaml:"model"`
-	SampleRate    float64 `yaml:"sample_rate"`
-	MinConfidence float64 `yaml:"min_confidence"`
+	Model         string  `yaml:"model" json:"model"`
+	SampleRate    float64 `yaml:"sample_rate" json:"sample_rate"`
+	MinConfidence float64 `yaml:"min_confidence" json:"min_confidence"`
 }
 
 type DedupConfig struct {
-	URLExact    bool         `yaml:"url_exact"`
-	ContentHash bool         `yaml:"content_hash"`
-	Vector      VectorConfig `yaml:"vector"`
+	URLExact         bool         `yaml:"url_exact" json:"url_exact"`
+	ContentHash      bool         `yaml:"content_hash" json:"content_hash"`
+	Vector           VectorConfig `yaml:"vector" json:"vector"`
+	EmbeddingContext bool         `yaml:"embedding_context" json:"embedding_context"` // Use embedding search for wikilink context during ingest
 }
 
 type VectorConfig struct {
-	Enabled      bool    `yaml:"enabled"`
-	Threshold    float64 `yaml:"threshold"`
-	Model        string  `yaml:"model"`
-	EmbeddingURL string  `yaml:"embedding_url"`     // 可选，默认用 llm.base_url
-	EmbeddingKey string  `yaml:"embedding_api_key"` // 可选，默认用 llm.api_key
+	Enabled      bool    `yaml:"enabled" json:"enabled"`
+	Threshold    float64 `yaml:"threshold" json:"threshold"`
+	Model        string  `yaml:"model" json:"model"`
+	EmbeddingURL string  `yaml:"embedding_url" json:"embedding_url"`     // 可选，默认用 llm.base_url
+	EmbeddingKey string  `yaml:"embedding_api_key" json:"embedding_api_key"` // 可选，默认用 llm.api_key
 }
 
 type LLMConfig struct {
@@ -76,16 +77,16 @@ type LLMConfig struct {
 
 // WebConfig holds web server configuration
 type WebConfig struct {
-	Port     string `yaml:"port"`
-	APIToken string `yaml:"api_token"` // Optional: Bearer token for API authentication
+	Port     string `yaml:"port" json:"port"`
+	APIToken string `yaml:"api_token" json:"api_token"` // Optional: Bearer token for API authentication
 }
 
 // PathsConfig holds data directory paths
 type PathsConfig struct {
-	Raw        string `yaml:"raw"`         // Path to raw RSS data (default: data/raw)
-	CleanedRaw string `yaml:"cleaned_raw"` // Path to cleaned raw data (default: data/cleaned_raw)
-	Wiki       string `yaml:"wiki"`        // Path to wiki data (default: data/wiki)
-	Reject     string `yaml:"reject"`      // Path to rejected data (default: data/reject)
+	Raw        string `yaml:"raw" json:"raw"`                 // Path to raw RSS data (default: data/raw)
+	CleanedRaw string `yaml:"cleaned_raw" json:"cleaned_raw"` // Path to cleaned raw data (default: data/cleaned_raw)
+	Wiki       string `yaml:"wiki" json:"wiki"`               // Path to wiki data (default: data/wiki)
+	Reject     string `yaml:"reject" json:"reject"`           // Path to rejected data (default: data/reject)
 }
 
 var configFiles = []string{"feeds.yaml", "filter.yaml", "dedup.yaml", "llm.yaml"}

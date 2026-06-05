@@ -25,10 +25,11 @@ type Server struct {
 	cfg          *config.Config
 	apiToken     string
 	onFetch      func()
-	onProcess    func()
+	onProcess    func(ctx context.Context)
 	onLLMUpdate  func(apiKey, baseURL, model string) // Update LLM client
 	fetchState   FetchState
 	processState ProcessState
+	embedState   EmbedState
 }
 
 type FetchState struct {
@@ -43,6 +44,7 @@ type ProcessState struct {
 	Total      int    `json:"total"`
 	Completed  int    `json:"completed"`
 	Current    string `json:"current"`
+	cancel     context.CancelFunc `json:"-"`
 }
 
 func NewServer(db *database.DB, llmClient *llm.Client, cfg *config.Config) *Server {
@@ -65,7 +67,7 @@ func (s *Server) SetFetchHandler(fn func()) {
 }
 
 // SetProcessHandler sets the callback for manual LLM processing
-func (s *Server) SetProcessHandler(fn func()) {
+func (s *Server) SetProcessHandler(fn func(ctx context.Context)) {
 	s.onProcess = fn
 }
 
@@ -115,6 +117,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("POST /api/feeds/fetch", s.handleFetchFeeds)
 	mux.HandleFunc("GET /api/feeds/fetch/status", s.handleFetchStatus)
 	mux.HandleFunc("POST /api/documents/process", s.handleProcessDocuments)
+	mux.HandleFunc("POST /api/documents/process/stop", s.handleProcessStop)
 	mux.HandleFunc("GET /api/documents/process/status", s.handleProcessStatus)
 	mux.HandleFunc("PUT /api/feeds/{id}", s.handleUpdateFeed)
 	mux.HandleFunc("DELETE /api/feeds/{id}", s.handleDeleteFeed)
@@ -130,6 +133,9 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("PUT /api/settings/{category}", s.handleUpdateSettingCategory)
 	mux.HandleFunc("POST /api/settings/test-llm", s.handleTestLLM)
 	mux.HandleFunc("POST /api/settings/test-embedding", s.handleTestEmbedding)
+	mux.HandleFunc("POST /api/embeddings/rebuild", s.handleRebuildEmbeddings)
+	mux.HandleFunc("GET /api/embeddings/status", s.handleEmbedStatus)
+	mux.HandleFunc("POST /api/embeddings/stop", s.handleEmbedStop)
 
 	// Static files
 	staticFS, err := fs.Sub(staticFiles, "static")

@@ -22,6 +22,7 @@ type Client struct {
 	provider   string // "openai" or "volcengine"
 	embedURL   string
 	embedKey   string
+	embedModel string
 	httpClient *http.Client
 }
 
@@ -45,7 +46,7 @@ func (c *Client) EmbedURL() string {
 }
 
 // NewClientWithEmbed creates an LLM client with separate embedding endpoint
-func NewClientWithEmbed(apiKey, baseURL, model, embedURL, embedKey string) *Client {
+func NewClientWithEmbed(apiKey, baseURL, model, embedURL, embedKey, embedModel string) *Client {
 	provider := detectProvider(baseURL)
 	cleanBase := cleanBaseURL(baseURL, provider)
 	return &Client{
@@ -55,6 +56,7 @@ func NewClientWithEmbed(apiKey, baseURL, model, embedURL, embedKey string) *Clie
 		provider:   provider,
 		embedURL:   cleanBaseURL(embedURL, provider),
 		embedKey:   embedKey,
+		embedModel: embedModel,
 		httpClient: &http.Client{Timeout: 60 * time.Second},
 	}
 }
@@ -322,9 +324,15 @@ type EmbedRequest struct {
 	Input []string `json:"input"`
 }
 
+// multimodalEmbedRequest for multimodal embedding APIs
+type multimodalEmbedRequest struct {
+	Model string                   `json:"model"`
+	Input []map[string]interface{} `json:"input"`
+}
+
 // EmbedResponse from OpenAI-compatible API
 type EmbedResponse struct {
-	Data []EmbedData `json:"data"`
+	Data json.RawMessage `json:"data"`
 }
 
 type EmbedData struct {
@@ -337,15 +345,6 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float32, error)
 		return nil, fmt.Errorf("embedding not configured: EMBEDDING_BASE_URL is not set")
 	}
 
-	reqBody := EmbedRequest{
-		Model: c.model,
-		Input: texts,
-	}
-	data, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, fmt.Errorf("marshal: %w", err)
-	}
-
 	embedURL := c.embedURL
 	embedKey := c.embedKey
 	if embedURL == "" {
@@ -355,7 +354,31 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float32, error)
 		embedKey = c.apiKey
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, embedURL+"/v1/embeddings", bytes.NewReader(data))
+	// If embedURL already contains the full endpoint path, use it directly
+	// Otherwise append /v1/embeddings (OpenAI-compatible default)
+	reqURL := embedURL
+	lower := strings.ToLower(embedURL)
+	if !strings.Contains(lower, "/embeddings") {
+		reqURL = strings.TrimSuffix(embedURL, "/") + "/v1/embeddings"
+	}
+
+	// Use multimodal format if URL contains "multimodal"
+	var data []byte
+	var err error
+	if strings.Contains(lower, "multimodal") {
+		input := make([]map[string]interface{}, len(texts))
+		for i, t := range texts {
+			input[i] = map[string]interface{}{"type": "text", "text": t}
+		}
+		data, err = json.Marshal(multimodalEmbedRequest{Model: c.embedModel, Input: input})
+	} else {
+		data, err = json.Marshal(EmbedRequest{Model: c.embedModel, Input: texts})
+	}
+	if err != nil {
+		return nil, fmt.Errorf("marshal: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
 	}
@@ -377,11 +400,24 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float32, error)
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decode: %w", err)
 	}
-	embeddings := make([][]float32, len(result.Data))
-	for i, d := range result.Data {
-		embeddings[i] = d.Embedding
+
+	// Try to parse data as array (standard OpenAI format)
+	var dataList []EmbedData
+	if err := json.Unmarshal(result.Data, &dataList); err == nil && len(dataList) > 0 {
+		embeddings := make([][]float32, len(dataList))
+		for i, d := range dataList {
+			embeddings[i] = d.Embedding
+		}
+		return embeddings, nil
 	}
-	return embeddings, nil
+
+	// Try to parse data as single object (volcengine multimodal format)
+	var dataSingle EmbedData
+	if err := json.Unmarshal(result.Data, &dataSingle); err == nil && len(dataSingle.Embedding) > 0 {
+		return [][]float32{dataSingle.Embedding}, nil
+	}
+
+	return nil, fmt.Errorf("unexpected embedding response format")
 }
 
 // EmbedSingle generates embedding for one text

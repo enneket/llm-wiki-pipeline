@@ -43,13 +43,14 @@ CREATE INDEX IF NOT EXISTS idx_documents_content_hash ON documents(content_hash)
 CREATE TABLE IF NOT EXISTS document_embeddings (
     id              BIGSERIAL PRIMARY KEY,
     document_id     BIGINT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-    embedding       VECTOR(1536),            -- OpenAI text-embedding-3-small dim
+    embedding       VECTOR,                    -- dimension determined by embedding model
     model           TEXT NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_document_embeddings_vector
-    ON document_embeddings USING ivfflat (embedding vector_cosine_ops);
+-- Note: Index on vector column must be created manually after first insert
+-- pgvector requires knowing the dimension for index creation
+-- CREATE INDEX idx_document_embeddings_vector ON document_embeddings USING hnsw (embedding vector_cosine_ops);
 
 -- Wiki pages table
 CREATE TABLE IF NOT EXISTS wiki_pages (
@@ -71,13 +72,13 @@ CREATE INDEX IF NOT EXISTS idx_wiki_pages_tags ON wiki_pages USING gin(tags);
 CREATE TABLE IF NOT EXISTS wiki_embeddings (
     id              BIGSERIAL PRIMARY KEY,
     wiki_page_id    BIGINT NOT NULL REFERENCES wiki_pages(id) ON DELETE CASCADE,
-    embedding       VECTOR(1536),
+    embedding       VECTOR,
     model           TEXT NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_wiki_embeddings_vector
-    ON wiki_embeddings USING ivfflat (embedding vector_cosine_ops);
+-- Note: Index on vector column must be created manually after first insert
+-- CREATE INDEX idx_wiki_embeddings_vector ON wiki_embeddings USING hnsw (embedding vector_cosine_ops);
 
 -- Dedup records: track dedup decisions
 CREATE TABLE IF NOT EXISTS dedup_records (

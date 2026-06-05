@@ -13,19 +13,21 @@ import (
 
 // Ingest processes a document through the full ingest pipeline
 type Ingest struct {
-	llmClient *llm.Client
-	embedder  *vectpkg.Embedder
-	writer    *WikiWriter
-	dedup     *step2.Dedup
+	llmClient        *llm.Client
+	embedder         *vectpkg.Embedder
+	writer           *WikiWriter
+	dedup            *step2.Dedup
+	embeddingContext bool // Use embedding search for wikilink context
 }
 
 // NewIngest creates a new ingest pipeline
-func NewIngest(llmClient *llm.Client, embedder *vectpkg.Embedder, writer *WikiWriter, dedup *step2.Dedup) *Ingest {
+func NewIngest(llmClient *llm.Client, embedder *vectpkg.Embedder, writer *WikiWriter, dedup *step2.Dedup, embeddingContext bool) *Ingest {
 	return &Ingest{
-		llmClient: llmClient,
-		embedder:  embedder,
-		writer:    writer,
-		dedup:     dedup,
+		llmClient:        llmClient,
+		embedder:         embedder,
+		writer:           writer,
+		dedup:            dedup,
+		embeddingContext: embeddingContext,
 	}
 }
 
@@ -41,10 +43,14 @@ func (i *Ingest) Process(ctx context.Context, filePath string) (*WikiPage, error
 		title = filepath.Base(filePath)
 	}
 
-	// Step 1: Embedding pre-search for wikilink context
-	preResults, err := i.embedder.SearchWiki(ctx, string(content), 5)
-	if err != nil {
-		preResults = nil // Non-fatal: continue without pre-search context
+	// Step 1: Get existing pages for wikilink context
+	var preResults []vectpkg.PreSearchResult
+	if i.embeddingContext && i.embedder != nil {
+		// Use embedding search for better context
+		preResults, _ = i.embedder.SearchWiki(ctx, string(content), 5)
+	} else {
+		// Use database query (no embedding API call)
+		preResults, _ = i.getExistingPages(ctx, 50)
 	}
 
 	// Step 2: Two-Step CoT Ingest
@@ -124,4 +130,33 @@ func slugify(name string) string {
 		}
 	}
 	return result
+}
+
+// getExistingPages gets existing wiki page titles from DB for wikilink context
+func (i *Ingest) getExistingPages(ctx context.Context, limit int) ([]vectpkg.PreSearchResult, error) {
+	if i.writer.pool == nil {
+		return nil, nil
+	}
+
+	rows, err := i.writer.pool.Query(ctx, `
+		SELECT title, slug, LEFT(content, 200)
+		FROM wiki_pages
+		WHERE page_type IN ('entity', 'concept')
+		ORDER BY last_modified DESC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []vectpkg.PreSearchResult
+	for rows.Next() {
+		var r vectpkg.PreSearchResult
+		if err := rows.Scan(&r.Title, &r.Slug, &r.Content); err != nil {
+			continue
+		}
+		results = append(results, r)
+	}
+	return results, nil
 }

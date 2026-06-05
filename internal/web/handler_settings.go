@@ -135,8 +135,8 @@ func deepMerge(existing, new map[string]interface{}) map[string]interface{} {
 		// Otherwise use new value (even if empty string - user intentionally cleared it)
 		// But skip empty strings for API keys to preserve existing values
 		if str, ok := v.(string); ok && str == "" {
-			// Check if this is an API key field - preserve existing value
-			if k == "api_key" || k == "embedding_api_key" {
+			// Check if this is a sensitive/optional field - preserve existing value
+			if k == "api_key" || k == "embedding_api_key" || k == "embedding_url" {
 				continue
 			}
 		}
@@ -315,7 +315,7 @@ func (s *Server) handleTestEmbedding(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create client and test
-	client := llm.NewClientWithEmbed(llmCfg.APIKey, llmCfg.BaseURL, llmCfg.Model, embedURL, embedKey)
+	client := llm.NewClientWithEmbed(llmCfg.APIKey, llmCfg.BaseURL, llmCfg.Model, embedURL, embedKey, embedModel)
 	embeddings, err := client.Embed(ctx, []string{"Hello world"})
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
