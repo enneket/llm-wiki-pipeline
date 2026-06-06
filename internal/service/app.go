@@ -43,7 +43,7 @@ func New(cfg *config.Config, db *database.DB) *App {
 	var llmClient *llm.Client
 	embedURL := cfg.Dedup.Vector.EmbeddingURL
 	embedKey := cfg.Dedup.Vector.EmbeddingKey
-	if embedURL != "" && embedKey != "" {
+	if embedURL != "" {
 		llmClient = llm.NewClientWithEmbed(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model, embedURL, embedKey, cfg.Dedup.Vector.Model)
 	} else {
 		llmClient = llm.NewClient(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model)
@@ -79,7 +79,7 @@ func New(cfg *config.Config, db *database.DB) *App {
 	app.filter.SetLLMClient(llmClient)
 
 	app.ingest = step3.NewIngest(llmClient, app.embedder, app.writer, app.dedup, cfg.Dedup.EmbeddingContext)
-	app.webServer = web.NewServer(db, llmClient, cfg)
+	app.webServer = web.NewServer(db, llmClient, app.embedder, cfg)
 	app.webServer.SetFetchHandler(func() {
 		app.scheduler.RunOnce()
 	})
@@ -88,9 +88,16 @@ func New(cfg *config.Config, db *database.DB) *App {
 	})
 	app.webServer.SetLLMUpdateHandler(func(apiKey, baseURL, model string) {
 		if apiKey != "" && baseURL != "" && model != "" {
-			app.llmClient = llm.NewClient(apiKey, baseURL, model)
-			app.ingest = step3.NewIngest(app.llmClient, app.embedder, app.writer, app.dedup, app.cfg.Dedup.EmbeddingContext)
-			log.Printf("[app] LLM client updated: %s", baseURL)
+			// Get embedding config
+			embedURL := cfg.Dedup.Vector.EmbeddingURL
+			embedKey := cfg.Dedup.Vector.EmbeddingKey
+			embedModel := cfg.Dedup.Vector.Model
+
+			app.llmClient = llm.NewClientWithEmbed(apiKey, baseURL, model, embedURL, embedKey, embedModel)
+			app.embedder = vectpkg.NewEmbedder(app.llmClient, db.Pool, embedModel)
+			app.webServer.SetEmbedder(app.embedder)
+			app.ingest = step3.NewIngest(app.llmClient, app.embedder, app.writer, app.dedup, cfg.Dedup.EmbeddingContext)
+			log.Printf("[app] LLM client updated: %s, embed: %s", baseURL, embedURL)
 		}
 	})
 

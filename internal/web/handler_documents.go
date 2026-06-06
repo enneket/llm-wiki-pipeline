@@ -325,3 +325,26 @@ func (s *Server) UpdateProcessProgress(total, completed int, current string) {
 	s.processState.Completed = completed
 	s.processState.Current = current
 }
+
+func (s *Server) handleRetryDocument(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "invalid document id", http.StatusBadRequest)
+		return
+	}
+
+	// Reset the document status to pending
+	_, err = s.db.Pool.Exec(r.Context(), `
+		INSERT INTO ingest_queue (document_id, status, error)
+		VALUES ($1, 'pending', NULL)
+		ON CONFLICT (document_id) DO UPDATE SET status = 'pending', error = NULL, attempts = 0
+	`, id)
+	if err != nil {
+		http.Error(w, "failed to retry document", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "pending"})
+}

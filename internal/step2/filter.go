@@ -18,8 +18,9 @@ type Filter struct {
 
 // KeywordFilter matches documents by tag/keyword
 type KeywordFilter struct {
-	MatchAny bool
-	Tags     []string
+	MatchAny     bool
+	Tags         []string
+	BlacklistTags []string // Tags that should be rejected
 }
 
 type LLMJudgmentConfig struct {
@@ -76,6 +77,17 @@ func (f *Filter) Decide(ctx context.Context, tags []string) (Decision, error) {
 
 // keywordDecide implements keyword-based filtering
 func (f *Filter) keywordDecide(tags []string) Decision {
+	// Check blacklist first - reject if any tag matches blacklist
+	if len(f.keyword.BlacklistTags) > 0 {
+		for _, blacklistTag := range f.keyword.BlacklistTags {
+			for _, docTag := range tags {
+				if strings.Contains(strings.ToLower(docTag), strings.ToLower(blacklistTag)) {
+					return Reject
+				}
+			}
+		}
+	}
+
 	if len(tags) == 0 {
 		return Reject
 	}

@@ -470,12 +470,10 @@ async function fetchFeeds() {
 
 function startFetchProgress() {
     const progressDiv = document.getElementById('fetch-progress');
-    const progressFill = document.getElementById('progress-fill');
     const progressText = document.getElementById('progress-text');
     const fetchBtn = document.getElementById('fetch-btn');
 
     progressDiv.style.display = 'flex';
-    progressFill.style.width = '0%';
     progressText.textContent = '准备中...';
     fetchBtn.disabled = true;
     fetchBtn.textContent = '拉取中...';
@@ -492,10 +490,9 @@ function startFetchProgress() {
             }
 
             const percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
-            progressFill.style.width = percent + '%';
             progressText.textContent = data.current 
-                ? `${data.completed}/${data.total} - ${data.current}` 
-                : `${data.completed}/${data.total}`;
+                ? `${percent}% ${data.completed}/${data.total} - ${data.current}` 
+                : `${percent}% ${data.completed}/${data.total}`;
         } catch (err) {
             console.error('Failed to fetch progress:', err);
         }
@@ -536,6 +533,7 @@ async function loadSettings() {
             document.getElementById('filter-mode').value = settings.filter.mode || 'keyword';
             if (settings.filter.keyword) {
                 renderFilterTags(settings.filter.keyword.tags || []);
+                renderBlacklistTags(settings.filter.keyword.blacklist_tags || []);
                 document.getElementById('filter-keyword-match-any').checked = settings.filter.keyword.match_any || false;
             }
         }
@@ -582,7 +580,8 @@ async function saveSettings(category) {
                 mode: document.getElementById('filter-mode').value,
                 keyword: {
                     match_any: document.getElementById('filter-keyword-match-any').checked,
-                    tags: getFilterTags()
+                    tags: getFilterTags(),
+                    blacklist_tags: getBlacklistTags()
                 }
             };
             break;
@@ -600,8 +599,7 @@ async function saveSettings(category) {
                 }
             };
             // Don't send empty api_key (preserve existing)
-            if (!data.vector.embedding_api_key) delete data.vector.embedding_api_key;
-            if (!data.vector.embedding_url) delete data.vector.embedding_url;
+            // Send empty strings to clear values
             break;
         case 'general':
             data = {
@@ -710,13 +708,11 @@ async function stopEmbeddings() {
 
 function startEmbedProgress() {
     const progressDiv = document.getElementById('embed-progress');
-    const progressFill = document.getElementById('embed-progress-fill');
     const progressText = document.getElementById('embed-progress-text');
     const embedBtn = document.getElementById('embed-btn');
     const stopBtn = document.getElementById('embed-stop-btn');
 
     progressDiv.style.display = 'flex';
-    progressFill.style.width = '0%';
     progressText.textContent = '准备中...';
     embedBtn.disabled = true;
     embedBtn.textContent = '重建中...';
@@ -733,10 +729,9 @@ function startEmbedProgress() {
             }
 
             const percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
-            progressFill.style.width = percent + '%';
             progressText.textContent = data.current 
-                ? `${data.completed}/${data.total} - ${data.current}` 
-                : `${data.completed}/${data.total}`;
+                ? `${percent}% ${data.completed}/${data.total} - ${data.current}` 
+                : `${percent}% ${data.completed}/${data.total}`;
         } catch (err) {
             console.error('Failed to fetch embed status:', err);
         }
@@ -868,7 +863,10 @@ async function fetchDocuments() {
                         const displayTime = publishedTime || d.created_at;
                         return `
                         <div class="doc-item">
-                            <h3><a href="#" onclick="loadDocPage(${d.id}); return false;">${escapeHtml(d.title || '无标题')}</a></h3>
+                            <div class="doc-item-header">
+                                <h3><a href="#" onclick="loadDocPage(${d.id}); return false;">${escapeHtml(d.title || '无标题')}</a></h3>
+                                ${d.status === 'failed' ? `<button class="retry-btn" onclick="retryDocument(${d.id})">重试</button>` : ''}
+                            </div>
                             <div class="doc-item-meta">
                                 <span>来源: ${escapeHtml(d.feed_name || '-')}</span>
                                 <span>${statusMap[d.status] || d.status}</span>
@@ -923,6 +921,16 @@ async function fetchDocuments() {
 function goDocPage(page) {
     docState.page = page;
     fetchDocuments();
+}
+
+async function retryDocument(id) {
+    try {
+        const res = await fetch(`/api/documents/${id}/retry`, { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        fetchDocuments();
+    } catch (err) {
+        alert('重试失败: ' + err.message);
+    }
 }
 
 async function loadDocPage(id) {
@@ -1002,13 +1010,11 @@ async function stopProcessDocuments() {
 
 function startProcessProgress() {
     const progressDiv = document.getElementById('process-progress');
-    const progressFill = document.getElementById('process-progress-fill');
     const progressText = document.getElementById('process-progress-text');
     const processBtn = document.getElementById('process-btn');
     const stopBtn = document.getElementById('process-stop-btn');
 
     progressDiv.style.display = 'flex';
-    progressFill.style.width = '0%';
     progressText.textContent = '准备中...';
     processBtn.disabled = true;
     processBtn.textContent = '处理中...';
@@ -1026,10 +1032,9 @@ function startProcessProgress() {
             }
 
             const percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
-            progressFill.style.width = percent + '%';
             progressText.textContent = data.current 
-                ? `${data.completed}/${data.total} - ${data.current}` 
-                : `${data.completed}/${data.total}`;
+                ? `${percent}% ${data.completed}/${data.total} - ${data.current}` 
+                : `${percent}% ${data.completed}/${data.total}`;
         } catch (err) {
             console.error('Failed to fetch process status:', err);
         }
@@ -1056,11 +1061,17 @@ function stopProcessProgress() {
 function renderFilterTags(tags) {
     const list = document.getElementById('filter-tags-list');
     list.innerHTML = '';
-    tags.forEach(tag => addFilterTagChip(tag));
+    tags.forEach(tag => addFilterTagChip(tag, 'filter-tags-list'));
 }
 
-function addFilterTagChip(tag) {
-    const list = document.getElementById('filter-tags-list');
+function renderBlacklistTags(tags) {
+    const list = document.getElementById('filter-blacklist-tags-list');
+    list.innerHTML = '';
+    tags.forEach(tag => addFilterTagChip(tag, 'filter-blacklist-tags-list'));
+}
+
+function addFilterTagChip(tag, listId) {
+    const list = document.getElementById(listId || 'filter-tags-list');
     const chip = document.createElement('span');
     chip.className = 'tag-chip';
     chip.innerHTML = `<span>${escapeHtml(tag)}</span><span class="tag-remove" onclick="removeFilterTag(this)">×</span>`;
@@ -1076,8 +1087,14 @@ function getFilterTags() {
     return Array.from(chips).map(c => c.querySelector('span').textContent.trim());
 }
 
+function getBlacklistTags() {
+    const chips = document.querySelectorAll('#filter-blacklist-tags-list .tag-chip');
+    return Array.from(chips).map(c => c.querySelector('span').textContent.trim());
+}
+
 // Init tags input
 document.addEventListener('DOMContentLoaded', () => {
+    // Whitelist tags input
     const input = document.getElementById('filter-keyword-tags-input');
     const container = document.getElementById('filter-tags-container');
 
@@ -1087,7 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 const val = input.value.trim().replace(/,$/g, '');
                 if (val) {
-                    addFilterTagChip(val);
+                    addFilterTagChip(val, 'filter-tags-list');
                     input.value = '';
                 }
             }
@@ -1100,6 +1117,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (container) {
         container.addEventListener('click', () => input && input.focus());
+    }
+
+    // Blacklist tags input
+    const blInput = document.getElementById('filter-blacklist-tags-input');
+    const blContainer = document.getElementById('filter-blacklist-container');
+
+    if (blInput) {
+        blInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                const val = blInput.value.trim().replace(/,$/g, '');
+                if (val) {
+                    addFilterTagChip(val, 'filter-blacklist-tags-list');
+                    blInput.value = '';
+                }
+            }
+            if (e.key === 'Backspace' && blInput.value === '') {
+                const chips = document.querySelectorAll('#filter-blacklist-tags-list .tag-chip');
+                if (chips.length > 0) chips[chips.length - 1].remove();
+            }
+        });
+    }
+
+    if (blContainer) {
+        blContainer.addEventListener('click', () => blInput && blInput.focus());
     }
 });
 

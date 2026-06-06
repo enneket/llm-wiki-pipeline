@@ -133,10 +133,9 @@ func deepMerge(existing, new map[string]interface{}) map[string]interface{} {
 			}
 		}
 		// Otherwise use new value (even if empty string - user intentionally cleared it)
-		// But skip empty strings for API keys to preserve existing values
+		// Only skip empty api_key for LLM to preserve existing value
 		if str, ok := v.(string); ok && str == "" {
-			// Check if this is a sensitive/optional field - preserve existing value
-			if k == "api_key" || k == "embedding_api_key" || k == "embedding_url" {
+			if k == "api_key" {
 				continue
 			}
 		}

@@ -43,8 +43,9 @@ type FilterConfig struct {
 }
 
 type KeywordFilter struct {
-	MatchAny bool     `yaml:"match_any" json:"match_any"`
-	Tags     []string `yaml:"tags" json:"tags"`
+	MatchAny      bool     `yaml:"match_any" json:"match_any"`
+	Tags          []string `yaml:"tags" json:"tags"`
+	BlacklistTags []string `yaml:"blacklist_tags" json:"blacklist_tags"`
 }
 
 type LLMJudgmentConfig struct {

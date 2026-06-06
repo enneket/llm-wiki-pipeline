@@ -19,6 +19,11 @@ func NewEmbedder(client *llm.Client, pool *pgxpool.Pool, model string) *Embedder
 	return &Embedder{client: client, pool: pool, model: model}
 }
 
+// Model returns the embedding model name
+func (e *Embedder) Model() string {
+	return e.model
+}
+
 // Embed generates an embedding for the given text
 func (e *Embedder) Embed(ctx context.Context, text string) ([]float32, error) {
 	return e.client.EmbedSingle(ctx, text)

@@ -17,15 +17,20 @@ type EmbedState struct {
 }
 
 func (s *Server) handleRebuildEmbeddings(w http.ResponseWriter, r *http.Request) {
-	if s.processState.Running {
-		http.Error(w, `{"error":"LLM processing is running, stop it first"}`, http.StatusConflict)
+	if s.embedState.Running {
+		http.Error(w, `{"error":"embedding rebuild already in progress"}`, http.StatusConflict)
 		return
 	}
 
-	ctx, cancel := context.WithCancel(r.Context())
-	s.embedState = EmbedState{Running: true, cancel: cancel}
+	ctx, cancel := context.WithCancel(context.Background())
+	s.embedState = EmbedState{Running: true, cancel: cancel, Current: "准备中..."}
 
-	go s.rebuildEmbeddings(ctx)
+	go func() {
+		s.rebuildEmbeddings(ctx)
+		s.embedState.Running = false
+		s.embedState.Current = ""
+		s.embedState.cancel = nil
+	}()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "started"})
@@ -37,26 +42,30 @@ func (s *Server) handleEmbedStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleEmbedStop(w http.ResponseWriter, r *http.Request) {
-	if s.embedState.cancel != nil {
-		s.embedState.cancel()
+	if !s.embedState.Running || s.embedState.cancel == nil {
+		http.Error(w, "no embedding rebuild in progress", http.StatusConflict)
+		return
 	}
+
+	s.embedState.cancel()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "stopping"})
 }
 
+// UpdateEmbedProgress updates the embed progress
+func (s *Server) UpdateEmbedProgress(total, completed int, current string) {
+	s.embedState.Total = total
+	s.embedState.Completed = completed
+	s.embedState.Current = current
+}
+
 func (s *Server) rebuildEmbeddings(ctx context.Context) {
 	pool := s.db.Pool
-	llmClient := s.llm
+	embedder := s.embedder
 
-	defer func() {
-		s.embedState.Running = false
-		s.embedState.Current = ""
-	}()
-
-	// Get embedding model
-	embedModel := s.cfg.Dedup.Vector.Model
-	if embedModel == "" {
-		log.Printf("[embed] no embedding model configured")
+	if embedder == nil {
+		log.Printf("[embed] embedder not configured")
+		s.UpdateEmbedProgress(0, 0, "未配置 embedder")
 		return
 	}
 
@@ -76,10 +85,11 @@ func (s *Server) rebuildEmbeddings(ctx context.Context) {
 		return
 	}
 
-	s.embedState.Total = wikiCount + docCount
-	s.embedState.Completed = 0
-
+	total := wikiCount + docCount
+	s.UpdateEmbedProgress(total, 0, "")
 	log.Printf("[embed] rebuilding embeddings: %d wiki pages + %d documents", wikiCount, docCount)
+
+	completed := 0
 
 	// Process wiki pages
 	rows, err := pool.Query(ctx, "SELECT id, title, content FROM wiki_pages ORDER BY id")
@@ -92,7 +102,8 @@ func (s *Server) rebuildEmbeddings(ctx context.Context) {
 	for rows.Next() {
 		select {
 		case <-ctx.Done():
-			log.Printf("[embed] stopped by user (%d/%d)", s.embedState.Completed, s.embedState.Total)
+			s.UpdateEmbedProgress(total, completed, "已停止")
+			log.Printf("[embed] stopped by user (%d/%d)", completed, total)
 			return
 		default:
 		}
@@ -104,14 +115,14 @@ func (s *Server) rebuildEmbeddings(ctx context.Context) {
 			continue
 		}
 
-		s.embedState.Current = title
+		s.UpdateEmbedProgress(total, completed, title)
 
 		// Generate embedding (use title + first 500 chars of content)
 		text := title + "\n" + truncateStr(content, 500)
-		emb, err := llmClient.EmbedSingle(ctx, text)
+		emb, err := embedder.Embed(ctx, text)
 		if err != nil {
 			log.Printf("[embed] failed to embed wiki page %d (%s): %v", id, title, err)
-			s.embedState.Completed++
+			completed++
 			continue
 		}
 
@@ -120,14 +131,14 @@ func (s *Server) rebuildEmbeddings(ctx context.Context) {
 			INSERT INTO wiki_embeddings (wiki_page_id, embedding, model)
 			VALUES ($1, $2, $3)
 			ON CONFLICT (wiki_page_id) DO UPDATE SET embedding = EXCLUDED.embedding, model = EXCLUDED.model
-		`, id, emb, embedModel)
+		`, id, emb, embedder.Model())
 		if err != nil {
 			log.Printf("[embed] failed to store wiki embedding %d: %v", id, err)
 		}
 
-		s.embedState.Completed++
-		if s.embedState.Completed%10 == 0 {
-			log.Printf("[embed] progress: %d/%d", s.embedState.Completed, s.embedState.Total)
+		completed++
+		if completed%10 == 0 {
+			log.Printf("[embed] progress: %d/%d", completed, total)
 		}
 
 		time.Sleep(50 * time.Millisecond) // Rate limit
@@ -144,7 +155,8 @@ func (s *Server) rebuildEmbeddings(ctx context.Context) {
 	for rows2.Next() {
 		select {
 		case <-ctx.Done():
-			log.Printf("[embed] stopped by user (%d/%d)", s.embedState.Completed, s.embedState.Total)
+			s.UpdateEmbedProgress(total, completed, "已停止")
+			log.Printf("[embed] stopped by user (%d/%d)", completed, total)
 			return
 		default:
 		}
@@ -156,14 +168,14 @@ func (s *Server) rebuildEmbeddings(ctx context.Context) {
 			continue
 		}
 
-		s.embedState.Current = title
+		s.UpdateEmbedProgress(total, completed, title)
 
 		// Generate embedding (use title + first 500 chars of content)
 		text := title + "\n" + truncateStr(content, 500)
-		emb, err := llmClient.EmbedSingle(ctx, text)
+		emb, err := embedder.Embed(ctx, text)
 		if err != nil {
 			log.Printf("[embed] failed to embed document %d (%s): %v", id, title, err)
-			s.embedState.Completed++
+			completed++
 			continue
 		}
 
@@ -172,20 +184,21 @@ func (s *Server) rebuildEmbeddings(ctx context.Context) {
 			INSERT INTO document_embeddings (document_id, embedding, model)
 			VALUES ($1, $2, $3)
 			ON CONFLICT (document_id) DO UPDATE SET embedding = EXCLUDED.embedding, model = EXCLUDED.model
-		`, id, emb, embedModel)
+		`, id, emb, embedder.Model())
 		if err != nil {
 			log.Printf("[embed] failed to store doc embedding %d: %v", id, err)
 		}
 
-		s.embedState.Completed++
-		if s.embedState.Completed%10 == 0 {
-			log.Printf("[embed] progress: %d/%d", s.embedState.Completed, s.embedState.Total)
+		completed++
+		if completed%10 == 0 {
+			log.Printf("[embed] progress: %d/%d", completed, total)
 		}
 
 		time.Sleep(50 * time.Millisecond) // Rate limit
 	}
 
-	log.Printf("[embed] completed: %d/%d", s.embedState.Completed, s.embedState.Total)
+	s.UpdateEmbedProgress(total, completed, "完成")
+	log.Printf("[embed] completed: %d/%d", completed, total)
 }
 
 func truncateStr(s string, max int) string {

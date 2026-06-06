@@ -324,6 +324,11 @@ type EmbedRequest struct {
 	Input []string `json:"input"`
 }
 
+// FastEmbedRequest for FastEmbed API
+type FastEmbedRequest struct {
+	Texts []string `json:"texts"`
+}
+
 // multimodalEmbedRequest for multimodal embedding APIs
 type multimodalEmbedRequest struct {
 	Model string                   `json:"model"`
@@ -354,35 +359,44 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float32, error)
 		embedKey = c.apiKey
 	}
 
-	// If embedURL already contains the full endpoint path, use it directly
-	// Otherwise append /v1/embeddings (OpenAI-compatible default)
-	reqURL := embedURL
 	lower := strings.ToLower(embedURL)
-	if !strings.Contains(lower, "/embeddings") {
-		reqURL = strings.TrimSuffix(embedURL, "/") + "/v1/embeddings"
-	}
 
-	// Use multimodal format if URL contains "multimodal"
+	// Determine request format based on URL
 	var data []byte
 	var err error
-	if strings.Contains(lower, "multimodal") {
+	var isFastEmbed bool
+
+	if strings.HasSuffix(lower, "/embed") && !strings.Contains(lower, "/embeddings") {
+		// FastEmbed format: POST /embed with {"texts": [...]}
+		data, err = json.Marshal(FastEmbedRequest{Texts: texts})
+		isFastEmbed = true
+	} else if strings.Contains(lower, "multimodal") {
+		// Multimodal format
 		input := make([]map[string]interface{}, len(texts))
 		for i, t := range texts {
 			input[i] = map[string]interface{}{"type": "text", "text": t}
 		}
 		data, err = json.Marshal(multimodalEmbedRequest{Model: c.embedModel, Input: input})
 	} else {
+		// OpenAI format: POST /v1/embeddings with {"model": ..., "input": [...]}
+		reqURL := embedURL
+		if !strings.Contains(lower, "/embeddings") {
+			reqURL = strings.TrimSuffix(embedURL, "/") + "/v1/embeddings"
+		}
+		embedURL = reqURL
 		data, err = json.Marshal(EmbedRequest{Model: c.embedModel, Input: texts})
 	}
 	if err != nil {
 		return nil, fmt.Errorf("marshal: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(data))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, embedURL, bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+embedKey)
+	if embedKey != "" {
+		req.Header.Set("Authorization", "Bearer "+embedKey)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
@@ -396,12 +410,35 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float32, error)
 		return nil, fmt.Errorf("status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var result EmbedResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode: %w", err)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read body: %w", err)
 	}
 
-	// Try to parse data as array (standard OpenAI format)
+	// Parse response based on format
+	if isFastEmbed {
+		// FastEmbed returns {"embeddings": [[float, ...], ...]} or [[float, ...], ...]
+		var fastResp struct {
+			Embeddings [][]float32 `json:"embeddings"`
+		}
+		if err := json.Unmarshal(body, &fastResp); err == nil && len(fastResp.Embeddings) > 0 {
+			return fastResp.Embeddings, nil
+		}
+		// Fallback: try parsing as direct array
+		var embeddings [][]float32
+		if err := json.Unmarshal(body, &embeddings); err != nil {
+			return nil, fmt.Errorf("parse fastembed response: %w", err)
+		}
+		return embeddings, nil
+	}
+
+	// OpenAI format: {"data": [{"embedding": [...]}]}
+	var result EmbedResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("parse response: %w", err)
+	}
+
+	// Try parsing as array of EmbedData
 	var dataList []EmbedData
 	if err := json.Unmarshal(result.Data, &dataList); err == nil && len(dataList) > 0 {
 		embeddings := make([][]float32, len(dataList))
@@ -411,7 +448,7 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float32, error)
 		return embeddings, nil
 	}
 
-	// Try to parse data as single object (volcengine multimodal format)
+	// Try parsing as single EmbedData
 	var dataSingle EmbedData
 	if err := json.Unmarshal(result.Data, &dataSingle); err == nil && len(dataSingle.Embedding) > 0 {
 		return [][]float32{dataSingle.Embedding}, nil

@@ -13,6 +13,7 @@ import (
 	"llm-wiki/internal/config"
 	"llm-wiki/pkg/database"
 	"llm-wiki/pkg/llm"
+	vectpkg "llm-wiki/pkg/vector"
 )
 
 //go:embed static/*
@@ -21,6 +22,7 @@ var staticFiles embed.FS
 type Server struct {
 	db           *database.DB
 	llm          *llm.Client
+	embedder     *vectpkg.Embedder
 	port         string
 	cfg          *config.Config
 	apiToken     string
@@ -47,7 +49,7 @@ type ProcessState struct {
 	cancel     context.CancelFunc `json:"-"`
 }
 
-func NewServer(db *database.DB, llmClient *llm.Client, cfg *config.Config) *Server {
+func NewServer(db *database.DB, llmClient *llm.Client, embedder *vectpkg.Embedder, cfg *config.Config) *Server {
 	port := cfg.Web.Port
 	if port == "" {
 		port = "6006"
@@ -55,6 +57,7 @@ func NewServer(db *database.DB, llmClient *llm.Client, cfg *config.Config) *Serv
 	return &Server{
 		db:       db,
 		llm:      llmClient,
+		embedder: embedder,
 		port:     port,
 		cfg:      cfg,
 		apiToken: cfg.Web.APIToken,
@@ -64,6 +67,11 @@ func NewServer(db *database.DB, llmClient *llm.Client, cfg *config.Config) *Serv
 // SetFetchHandler sets the callback for manual feed fetch
 func (s *Server) SetFetchHandler(fn func()) {
 	s.onFetch = fn
+}
+
+// SetEmbedder updates the embedder
+func (s *Server) SetEmbedder(embedder *vectpkg.Embedder) {
+	s.embedder = embedder
 }
 
 // SetProcessHandler sets the callback for manual LLM processing
@@ -128,6 +136,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("GET /api/documents", s.handleListDocuments)
 	mux.HandleFunc("GET /api/documents/stats", s.handleDocumentStats)
 	mux.HandleFunc("GET /api/documents/{id}", s.handleGetDocument)
+	mux.HandleFunc("POST /api/documents/{id}/retry", s.handleRetryDocument)
 	mux.HandleFunc("GET /api/settings", s.handleGetSettings)
 	mux.HandleFunc("GET /api/settings/{category}", s.handleGetSettingCategory)
 	mux.HandleFunc("PUT /api/settings/{category}", s.handleUpdateSettingCategory)
