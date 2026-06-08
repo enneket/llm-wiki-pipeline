@@ -17,12 +17,13 @@ import (
 
 // Config holds all application config
 type Config struct {
-	Feeds  FeedsConfig  `json:"feeds"`
-	Filter FilterConfig `json:"filter"`
-	Dedup  DedupConfig  `json:"dedup"`
-	LLM    LLMConfig    `json:"llm"`
-	Web    WebConfig    `json:"web"`
-	Paths  PathsConfig  `json:"paths"`
+	Feeds   FeedsConfig  `json:"feeds"`
+	Filter  FilterConfig `json:"filter"`
+	Dedup   DedupConfig  `json:"dedup"`
+	LLM     LLMConfig    `json:"llm"`
+	Web     WebConfig    `json:"web"`
+	Paths   PathsConfig  `json:"paths"`
+	Process ProcessConfig `json:"process"`
 }
 
 type FeedsConfig struct {
@@ -88,6 +89,11 @@ type PathsConfig struct {
 	CleanedRaw string `yaml:"cleaned_raw" json:"cleaned_raw"` // Path to cleaned raw data (default: data/cleaned_raw)
 	Wiki       string `yaml:"wiki" json:"wiki"`               // Path to wiki data (default: data/wiki)
 	Reject     string `yaml:"reject" json:"reject"`           // Path to rejected data (default: data/reject)
+}
+
+// ProcessConfig holds LLM processing configuration
+type ProcessConfig struct {
+	Concurrency int `yaml:"concurrency" json:"concurrency"` // Number of concurrent LLM processing goroutines (default: 1)
 }
 
 var configFiles = []string{"feeds.yaml", "filter.yaml", "dedup.yaml", "llm.yaml"}
@@ -310,5 +316,8 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Web.Port == "" {
 		c.Web.Port = "6006"
+	}
+	if c.Process.Concurrency <= 0 {
+		c.Process.Concurrency = 1
 	}
 }

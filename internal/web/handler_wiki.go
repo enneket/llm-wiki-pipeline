@@ -32,7 +32,6 @@ func (s *Server) handleListWiki(w http.ResponseWriter, r *http.Request) {
 		SELECT id, title, slug, page_type, tags, created_at::text
 		FROM wiki_pages
 		ORDER BY last_modified DESC
-		LIMIT 100
 	`)
 	if err != nil {
 		http.Error(w, "failed to query wiki pages", http.StatusInternalServerError)

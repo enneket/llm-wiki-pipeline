@@ -9,10 +9,10 @@ function formatTime(dateStr) {
 
 // Tab switching
 function switchTab(tabName) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(c => c.classList.remove('active'));
 
-    const tab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+    const tab = document.querySelector(`.nav-item[data-tab="${tabName}"]`);
     const content = document.getElementById(tabName);
     if (tab && content) {
         tab.classList.add('active');
@@ -27,7 +27,7 @@ function switchTab(tabName) {
     }
 }
 
-document.querySelectorAll('.tab').forEach(tab => {
+document.querySelectorAll('.nav-item').forEach(tab => {
     tab.addEventListener('click', (e) => {
         e.preventDefault();
         const tabName = tab.dataset.tab;
@@ -136,11 +136,11 @@ function renderFeedList() {
             <div class="feed-info">
                 <h3>${escapeHtml(f.name)}</h3>
                 <p>${escapeHtml(f.url)}</p>
-                ${f.tags.length ? `<p>标签: ${f.tags.join(', ')}</p>` : ''}
+                ${f.tags.length ? `<div class="feed-tags">${f.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
             </div>
             <div class="feed-actions">
-                <button class="edit-btn" onclick="editFeed(${f.id}, '${escapeHtml(f.name)}', '${escapeHtml(f.url)}', '${f.tags.join(',')}')">编辑</button>
-                <button class="delete-btn" onclick="deleteFeed(${f.id})">删除</button>
+                <button class="btn btn-ghost btn-sm" onclick="editFeed(${f.id}, '${escapeHtml(f.name)}', '${escapeHtml(f.url)}', '${f.tags.join(',')}')">编辑</button>
+                <button class="btn btn-ghost btn-sm btn-danger-text" onclick="deleteFeed(${f.id})">删除</button>
             </div>
         </div>
     `).join('');
@@ -403,7 +403,16 @@ function backToList() {
 
 // Simple markdown rendering
 function renderMarkdown(text) {
-    return text
+    // Strip YAML frontmatter
+    let content = text;
+    if (content.startsWith('---')) {
+        const endIdx = content.indexOf('---', 3);
+        if (endIdx !== -1) {
+            content = content.substring(endIdx + 3).trim();
+        }
+    }
+
+    return content
         .replace(/^### (.*$)/gm, '<h3>$1</h3>')
         .replace(/^## (.*$)/gm, '<h2>$1</h2>')
         .replace(/^# (.*$)/gm, '<h1>$1</h1>')
@@ -556,6 +565,7 @@ async function loadSettings() {
         // General
         if (settings.general) {
             document.getElementById('general-interval').value = settings.general.interval || '';
+            document.getElementById('general-concurrency').value = settings.general.concurrency || 1;
         }
     } catch (err) {
         console.error('Failed to load settings:', err);
@@ -603,7 +613,8 @@ async function saveSettings(category) {
             break;
         case 'general':
             data = {
-                interval: document.getElementById('general-interval').value
+                interval: document.getElementById('general-interval').value,
+                concurrency: parseInt(document.getElementById('general-concurrency').value) || 1
             };
             break;
     }
@@ -947,6 +958,15 @@ async function loadDocPage(id) {
         document.getElementById('doc-meta-date').textContent = formatTime(doc.created_at);
         document.getElementById('doc-body').innerHTML = renderMarkdown(doc.content);
 
+        // Original link
+        const linkEl = document.getElementById('doc-original-link');
+        if (doc.url) {
+            linkEl.href = doc.url;
+            linkEl.style.display = 'inline-flex';
+        } else {
+            linkEl.style.display = 'none';
+        }
+
         document.getElementById('doc-list').style.display = 'none';
         document.getElementById('doc-pagination').style.display = 'none';
         document.getElementById('doc-content').style.display = 'block';
@@ -1167,4 +1187,76 @@ document.querySelectorAll('.settings-tab').forEach(tab => {
         tab.classList.add('active');
         document.getElementById('settings-' + tab.dataset.settings).classList.add('active');
     });
+});
+
+// Suggested Tags
+async function loadSuggestedTags() {
+    try {
+        const [tagsRes, statsRes] = await Promise.all([
+            fetch('/api/suggested-tags'),
+            fetch('/api/suggested-tags/stats')
+        ]);
+
+        const tags = await tagsRes.json();
+        const stats = await statsRes.json();
+
+        document.getElementById('suggested-tags-count').textContent = stats.pending || 0;
+
+        const list = document.getElementById('suggested-tags-list');
+        if (!tags || tags.length === 0) {
+            list.innerHTML = '<p class="text-muted">暂无推荐标签</p>';
+            return;
+        }
+
+        list.innerHTML = tags.map(t => `
+            <div class="suggested-tag" data-id="${t.id}">
+                <span>${escapeHtml(t.tag)}</span>
+                <span class="text-muted">(${t.source_count})</span>
+                <div class="suggested-tag-actions">
+                    <button class="suggested-tag-btn accept" onclick="acceptSuggestedTag(${t.id})" title="加入筛选">✓</button>
+                    <button class="suggested-tag-btn reject" onclick="rejectSuggestedTag(${t.id})" title="忽略">✕</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('Failed to load suggested tags:', err);
+    }
+}
+
+async function acceptSuggestedTag(id) {
+    try {
+        const res = await fetch(`/api/suggested-tags/${id}/accept`, { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+
+        // Add to filter tags UI
+        addFilterTagChip(data.tag, 'filter-tags-list');
+
+        // Reload suggested tags
+        loadSuggestedTags();
+    } catch (err) {
+        alert('操作失败: ' + err.message);
+    }
+}
+
+async function rejectSuggestedTag(id) {
+    try {
+        const res = await fetch(`/api/suggested-tags/${id}/reject`, { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+
+        // Remove from UI
+        const el = document.querySelector(`.suggested-tag[data-id="${id}"]`);
+        if (el) el.remove();
+
+        // Update count
+        const countEl = document.getElementById('suggested-tags-count');
+        countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
+    } catch (err) {
+        alert('操作失败: ' + err.message);
+    }
+}
+
+// Load suggested tags when filter settings tab is shown
+document.querySelector('.settings-tab[data-settings="filter"]').addEventListener('click', () => {
+    loadSuggestedTags();
 });

@@ -3,9 +3,12 @@ package step3
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"llm-wiki/internal/step2"
 	"llm-wiki/pkg/llm"
 	vectpkg "llm-wiki/pkg/vector"
@@ -17,16 +20,20 @@ type Ingest struct {
 	embedder         *vectpkg.Embedder
 	writer           *WikiWriter
 	dedup            *step2.Dedup
+	pool             *pgxpool.Pool
+	filterTags       []string
 	embeddingContext bool // Use embedding search for wikilink context
 }
 
 // NewIngest creates a new ingest pipeline
-func NewIngest(llmClient *llm.Client, embedder *vectpkg.Embedder, writer *WikiWriter, dedup *step2.Dedup, embeddingContext bool) *Ingest {
+func NewIngest(llmClient *llm.Client, embedder *vectpkg.Embedder, writer *WikiWriter, dedup *step2.Dedup, pool *pgxpool.Pool, filterTags []string, embeddingContext bool) *Ingest {
 	return &Ingest{
 		llmClient:        llmClient,
 		embedder:         embedder,
 		writer:           writer,
 		dedup:            dedup,
+		pool:             pool,
+		filterTags:       filterTags,
 		embeddingContext: embeddingContext,
 	}
 }
@@ -115,6 +122,11 @@ func (i *Ingest) Process(ctx context.Context, filePath string) (*WikiPage, error
 		return nil, fmt.Errorf("enqueue categories: %w", err)
 	}
 
+	// Store suggested tags (categories not in filter tags)
+	if len(analysis.Categories) > 0 {
+		i.storeSuggestedTags(ctx, analysis.Categories)
+	}
+
 	return page, nil
 }
 
@@ -130,6 +142,39 @@ func slugify(name string) string {
 		}
 	}
 	return result
+}
+
+// storeSuggestedTags stores categories that are not in filter tags as suggestions
+func (i *Ingest) storeSuggestedTags(ctx context.Context, categories []string) {
+	if i.pool == nil || len(i.filterTags) == 0 {
+		return
+	}
+
+	// Build a set of filter tags for quick lookup
+	filterSet := make(map[string]bool)
+	for _, tag := range i.filterTags {
+		filterSet[strings.ToLower(tag)] = true
+	}
+
+	for _, cat := range categories {
+		catLower := strings.ToLower(cat)
+		// Skip if already in filter tags
+		if filterSet[catLower] {
+			continue
+		}
+
+		// Insert or update suggested tag
+		_, err := i.pool.Exec(ctx, `
+			INSERT INTO suggested_tags (tag, source_count, first_seen, last_seen, status)
+			VALUES ($1, 1, NOW(), NOW(), 'pending')
+			ON CONFLICT (tag) DO UPDATE SET 
+				source_count = suggested_tags.source_count + 1,
+				last_seen = NOW()
+		`, cat)
+		if err != nil {
+			log.Printf("[ingest] failed to store suggested tag %s: %v", cat, err)
+		}
+	}
 }
 
 // getExistingPages gets existing wiki page titles from DB for wikilink context
