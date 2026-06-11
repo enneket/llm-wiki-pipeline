@@ -6,6 +6,9 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/pgvector/pgvector-go"
+	"llm-wiki/internal/chunker"
 )
 
 type EmbedState struct {
@@ -117,28 +120,56 @@ func (s *Server) rebuildEmbeddings(ctx context.Context) {
 
 		s.UpdateEmbedProgress(total, completed, title)
 
-		// Generate embedding (use title + first 500 chars of content)
-		text := title + "\n" + truncateStr(content, 500)
-		emb, err := embedder.Embed(ctx, text)
-		if err != nil {
-			log.Printf("[embed] failed to embed wiki page %d (%s): %v", id, title, err)
+		// Chunk the content
+		chunks := chunker.ChunkMarkdown(content, chunker.DefaultConfig())
+		if len(chunks) == 0 {
 			completed++
 			continue
 		}
 
-		// Store embedding
-		_, err = pool.Exec(ctx, `
-			INSERT INTO wiki_embeddings (wiki_page_id, embedding, model)
-			VALUES ($1, $2, $3)
-			ON CONFLICT (wiki_page_id) DO UPDATE SET embedding = EXCLUDED.embedding, model = EXCLUDED.model
-		`, id, emb, embedder.Model())
-		if err != nil {
-			log.Printf("[embed] failed to store wiki embedding %d: %v", id, err)
+		// Embed each chunk
+		chunkCount := 0
+		for _, chunk := range chunks {
+			embedText := title + "\n"
+			if chunk.HeadingPath != "" {
+				embedText += chunk.HeadingPath + "\n"
+			}
+			embedText += chunk.Text
+
+			emb, err := embedder.Embed(ctx, embedText)
+			if err != nil {
+				log.Printf("[embed] failed to embed chunk %d of page %d: %v", chunk.Index, id, err)
+				continue
+			}
+
+			// Store chunk embedding
+			_, err = pool.Exec(ctx, `
+				INSERT INTO wiki_chunks (wiki_page_id, chunk_index, chunk_text, heading_path, embedding)
+				VALUES ($1, $2, $3, $4, $5)
+				ON CONFLICT (wiki_page_id, chunk_index) 
+				DO UPDATE SET chunk_text = EXCLUDED.chunk_text, heading_path = EXCLUDED.heading_path, embedding = EXCLUDED.embedding
+			`, id, chunk.Index, chunk.Text, chunk.HeadingPath, pgvector.NewVector(emb))
+			if err != nil {
+				log.Printf("[embed] failed to store chunk %d of page %d: %v", chunk.Index, id, err)
+			} else {
+				chunkCount++
+			}
+		}
+
+		// Also store page-level embedding for backward compatibility
+		pageText := title + "\n" + truncateStr(content, 500)
+		emb, err := embedder.Embed(ctx, pageText)
+		if err == nil {
+			pool.Exec(ctx, `
+				INSERT INTO wiki_embeddings (wiki_page_id, embedding, model)
+				VALUES ($1, $2, $3)
+				ON CONFLICT (wiki_page_id) DO UPDATE SET embedding = EXCLUDED.embedding, model = EXCLUDED.model
+			`, id, pgvector.NewVector(emb), embedder.Model())
 		}
 
 		completed++
 		if completed%10 == 0 {
-			log.Printf("[embed] progress: %d/%d", completed, total)
+			log.Printf("[embed] progress: %d/%d (%d chunks)", completed, total, chunkCount)
 		}
 
 		time.Sleep(50 * time.Millisecond) // Rate limit
@@ -184,7 +215,7 @@ func (s *Server) rebuildEmbeddings(ctx context.Context) {
 			INSERT INTO document_embeddings (document_id, embedding, model)
 			VALUES ($1, $2, $3)
 			ON CONFLICT (document_id) DO UPDATE SET embedding = EXCLUDED.embedding, model = EXCLUDED.model
-		`, id, emb, embedder.Model())
+		`, id, pgvector.NewVector(emb), embedder.Model())
 		if err != nil {
 			log.Printf("[embed] failed to store doc embedding %d: %v", id, err)
 		}

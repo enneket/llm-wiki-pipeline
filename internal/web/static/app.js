@@ -51,7 +51,89 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAndRestoreProgress();
 });
 
-// Query
+// Query / Conversations
+let currentConversationId = null;
+
+async function loadConversations() {
+    try {
+        const res = await fetch('/api/conversations');
+        const conversations = await res.json();
+
+        const list = document.getElementById('conversation-list');
+        if (!conversations || conversations.length === 0) {
+            list.innerHTML = '<p class="text-muted" style="padding: 12px;">暂无对话</p>';
+            return;
+        }
+
+        list.innerHTML = conversations.map(c => `
+            <div class="conversation-item ${currentConversationId === c.id ? 'active' : ''}" 
+                 onclick="loadConversation(${c.id})">
+                <span class="conversation-item-title">${escapeHtml(c.title)}</span>
+                <button class="conversation-item-delete" onclick="event.stopPropagation(); deleteConversation(${c.id})">✕</button>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('Failed to load conversations:', err);
+    }
+}
+
+async function newConversation() {
+    currentConversationId = null;
+    document.getElementById('chat-messages').innerHTML = '<div class="chat-empty"><p>开始新的对话</p></div>';
+    document.getElementById('question').value = '';
+    document.getElementById('question').focus();
+    loadConversations();
+}
+
+async function loadConversation(id) {
+    try {
+        const res = await fetch(`/api/conversations/${id}`);
+        if (!res.ok) throw new Error('Not found');
+        const data = await res.json();
+
+        currentConversationId = id;
+        renderMessages(data.messages);
+        loadConversations();
+    } catch (err) {
+        alert('加载对话失败: ' + err.message);
+    }
+}
+
+function renderMessages(messages) {
+    const container = document.getElementById('chat-messages');
+    if (!messages || messages.length === 0) {
+        container.innerHTML = '<div class="chat-empty"><p>开始新的对话</p></div>';
+        return;
+    }
+
+    container.innerHTML = messages.map(m => {
+        if (m.role === 'user') {
+            return `
+                <div class="chat-message user">
+                    <div class="chat-message-content">${escapeHtml(m.content)}</div>
+                </div>
+            `;
+        } else {
+            let sourcesHtml = '';
+            if (m.sources && m.sources.length > 0) {
+                sourcesHtml = `
+                    <div class="chat-message-sources">
+                        参考来源: ${m.sources.map(s => `<a href="#" onclick="loadWikiPage('${s.Slug}'); return false;">${escapeHtml(s.Title)}</a>`).join(' ')}
+                    </div>
+                `;
+            }
+            return `
+                <div class="chat-message assistant">
+                    <div class="chat-message-content markdown-body">${renderMarkdown(m.content)}</div>
+                    ${sourcesHtml}
+                </div>
+            `;
+        }
+    }).join('');
+
+    container.scrollTop = container.scrollHeight;
+}
+
 async function askQuestion() {
     const question = document.getElementById('question').value.trim();
     if (!question) return;
@@ -60,33 +142,90 @@ async function askQuestion() {
     btn.disabled = true;
     btn.textContent = '思考中...';
 
+    // Add user message to UI immediately
+    const container = document.getElementById('chat-messages');
+    const emptyMsg = container.querySelector('.chat-empty');
+    if (emptyMsg) emptyMsg.remove();
+    container.innerHTML += `
+        <div class="chat-message user">
+            <div class="chat-message-content">${escapeHtml(question)}</div>
+        </div>
+    `;
+    container.scrollTop = container.scrollHeight;
+    document.getElementById('question').value = '';
+
     try {
         const res = await fetch('/api/query', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question })
+            body: JSON.stringify({ 
+                question,
+                conversation_id: currentConversationId || 0
+            })
         });
 
         if (!res.ok) throw new Error(await res.text());
 
         const data = await res.json();
-        document.getElementById('answer').style.display = 'block';
-        document.getElementById('answer-content').textContent = data.answer;
-
-        const sourcesDiv = document.getElementById('sources');
-        if (data.sources && data.sources.length > 0) {
-            sourcesDiv.innerHTML = '<h4>参考来源</h4>' +
-                data.sources.map(s => `<div class="source-item">${s.title}</div>`).join('');
-        } else {
-            sourcesDiv.innerHTML = '';
+        
+        // Update conversation ID if new
+        if (!currentConversationId && data.conversation_id) {
+            currentConversationId = data.conversation_id;
         }
+
+        // Add assistant message
+        let sourcesHtml = '';
+        if (data.sources && data.sources.length > 0) {
+            sourcesHtml = `
+                <div class="chat-message-sources">
+                    参考来源: ${data.sources.map(s => `<a href="#" onclick="loadWikiPage('${s.Slug}'); return false;">${escapeHtml(s.Title)}</a>`).join(' ')}
+                </div>
+            `;
+        }
+        container.innerHTML += `
+            <div class="chat-message assistant">
+                <div class="chat-message-content markdown-body">${renderMarkdown(data.answer)}</div>
+                ${sourcesHtml}
+            </div>
+        `;
+        container.scrollTop = container.scrollHeight;
+
+        // Reload conversations list
+        loadConversations();
     } catch (err) {
-        alert('查询失败: ' + err.message);
+        container.innerHTML += `
+            <div class="chat-message assistant">
+                <div class="chat-message-content" style="color: var(--danger);">错误: ${escapeHtml(err.message)}</div>
+            </div>
+        `;
     } finally {
         btn.disabled = false;
-        btn.textContent = '提问';
+        btn.textContent = '发送';
     }
 }
+
+async function deleteConversation(id) {
+    if (!confirm('确定删除这个对话？')) return;
+    try {
+        await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
+        if (currentConversationId === id) {
+            newConversation();
+        }
+        loadConversations();
+    } catch (err) {
+        alert('删除失败: ' + err.message);
+    }
+}
+
+// Load conversations when query tab is shown
+document.querySelector('.nav-item[data-tab="query"]').addEventListener('click', () => {
+    loadConversations();
+});
+
+// Load conversations on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadConversations();
+});
 
 // Status
 async function loadStatus() {
@@ -412,14 +551,65 @@ function renderMarkdown(text) {
         }
     }
 
-    return content
-        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/`(.*?)`/g, '<code>$1</code>')
-        .replace(/\n/g, '<br>');
+    // Check if content already contains HTML tags
+    const hasHtml = /<[a-z][\s\S]*>/i.test(content);
+    if (hasHtml) {
+        // Content is already HTML, just return it (sanitized)
+        return content;
+    }
+
+    // Escape HTML for pure markdown content
+    content = escapeHtml(content);
+
+    // Headings
+    content = content.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+    content = content.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+    content = content.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+
+    // Horizontal rule
+    content = content.replace(/^---$/gm, '<hr>');
+
+    // Bold and italic
+    content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+    // Inline code
+    content = content.replace(/`(.*?)`/g, '<code>$1</code>');
+
+    // Tables - convert | col1 | col2 | to HTML table
+    content = content.replace(/^\|(.+)\|$/gm, (match, row) => {
+        const cells = row.split('|').map(c => c.trim());
+        return '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+    });
+    // Wrap consecutive <tr> in table
+    content = content.replace(/((?:<tr>.*<\/tr>\n?)+)/g, '<table>$1</table>');
+    // First row is header
+    content = content.replace(/<table>(<tr>.*?<\/tr>)/, '<table><thead>$1</thead>');
+
+    // Lists
+    content = content.replace(/^- (.*$)/gm, '<li>$1</li>');
+    content = content.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+
+    // Blockquotes
+    content = content.replace(/^&gt; (.*$)/gm, '<blockquote>$1</blockquote>');
+
+    // Links [text](url)
+    content = content.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+
+    // Paragraphs - convert double newlines to paragraph breaks
+    content = content.replace(/\n\n+/g, '</p><p>');
+    // Single newlines become <br> only within paragraphs
+    content = content.replace(/\n/g, '<br>');
+
+    // Wrap in paragraph if not already
+    if (!content.startsWith('<')) {
+        content = '<p>' + content + '</p>';
+    }
+
+    // Clean up empty paragraphs
+    content = content.replace(/<p>\s*<\/p>/g, '');
+
+    return content;
 }
 
 function escapeHtml(str) {

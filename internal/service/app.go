@@ -497,6 +497,11 @@ func (a *App) tagsForFeed(feedName string) []string {
 }
 
 func (a *App) saveDocRecord(ctx context.Context, url, contentHash, title, content, source, feedName string) {
+	// Skip documents with empty titles
+	if strings.TrimSpace(title) == "" {
+		return
+	}
+
 	// Find feed_id by name
 	var feedID *int64
 	if feedName != "" {

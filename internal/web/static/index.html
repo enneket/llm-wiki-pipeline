@@ -18,8 +18,8 @@
             </div>
             <nav class="sidebar-nav">
                 <a class="nav-item active" data-tab="query">
-                    <span class="nav-icon">🔍</span>
-                    <span class="nav-label">查询</span>
+                    <span class="nav-icon">💬</span>
+                    <span class="nav-label">问答</span>
                 </a>
                 <a class="nav-item" data-tab="status">
                     <span class="nav-icon">📊</span>
@@ -48,17 +48,24 @@
         <main class="main">
             <!-- Query Tab -->
             <section id="query" class="page active">
-                <div class="page-header">
-                    <h2>查询</h2>
-                </div>
-                <div class="query-container">
-                    <textarea id="question" placeholder="输入你的问题..." rows="3"></textarea>
-                    <button id="ask-btn" class="btn btn-primary" onclick="askQuestion()">提问</button>
-                </div>
-                <div id="answer" class="answer-card" style="display:none">
-                    <div class="answer-header">答案</div>
-                    <div id="answer-content" class="answer-content"></div>
-                    <div id="sources" class="answer-sources"></div>
+                <div class="chat-layout">
+                    <div class="chat-sidebar">
+                        <div class="chat-sidebar-header">
+                            <button class="btn btn-primary btn-sm" onclick="newConversation()">新对话</button>
+                        </div>
+                        <div id="conversation-list" class="conversation-list"></div>
+                    </div>
+                    <div class="chat-main">
+                        <div id="chat-messages" class="chat-messages">
+                            <div class="chat-empty">
+                                <p>开始新的对话</p>
+                            </div>
+                        </div>
+                        <div class="chat-input">
+                            <textarea id="question" placeholder="输入你的问题..." rows="2"></textarea>
+                            <button id="ask-btn" class="btn btn-primary" onclick="askQuestion()">发送</button>
+                        </div>
+                    </div>
                 </div>
             </section>
 

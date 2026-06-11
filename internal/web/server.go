@@ -119,6 +119,12 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// API routes
 	mux.HandleFunc("POST /api/query", s.handleQuery)
+	mux.HandleFunc("GET /api/query/history", s.handleQueryHistory)
+	mux.HandleFunc("GET /api/query/history/{id}", s.handleQueryHistoryDetail)
+	mux.HandleFunc("GET /api/conversations", s.handleListConversations)
+	mux.HandleFunc("POST /api/conversations", s.handleCreateConversation)
+	mux.HandleFunc("GET /api/conversations/{id}", s.handleGetConversation)
+	mux.HandleFunc("DELETE /api/conversations/{id}", s.handleDeleteConversation)
 	mux.HandleFunc("GET /api/status", s.handleStatus)
 	mux.HandleFunc("GET /api/feeds", s.handleListFeeds)
 	mux.HandleFunc("POST /api/feeds", s.handleAddFeed)
